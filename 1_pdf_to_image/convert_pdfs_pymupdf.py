@@ -2,19 +2,16 @@ import fitz  # PyMuPDF
 import os
 
 def convert_pdf_to_images(pdf_path, output_folder='output_images', dpi=200, image_format='JPEG'):
-    """
-    Converts each page of a PDF file into an image using PyMuPDF.
-    """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-
+    
     try:
         doc = fitz.open(pdf_path)
         print(f"✅ Opened {pdf_path} | Total pages: {len(doc)}")
     except Exception as e:
         print(f"⚠️ Could not open {pdf_path}: {e}")
         return []
-
+    
     saved_images = []
     for i, page in enumerate(doc):
         try:
@@ -25,21 +22,21 @@ def convert_pdf_to_images(pdf_path, output_folder='output_images', dpi=200, imag
             print(f"✅ Saved {image_path}")
         except Exception as e:
             print(f"⚠️ Error rendering page {i + 1}: {e}")
-
+    
     doc.close()
     print(f"🎉 Done! {len(saved_images)} pages saved in '{output_folder}'.")
     return saved_images
 
-
+# Example usage:
 if __name__ == "__main__":
     input_folder = r"G:\Project\PDF_TO_TEXT\0_Input_folder"
     output_base = r"G:\Project\PDF_TO_TEXT\1_pdf_to_image\output_images"
-
+    
     if not os.path.exists(output_base):
         os.makedirs(output_base)
-
+    
     pdf_files = [f for f in os.listdir(input_folder) if f.lower().endswith(".pdf")]
-
+    
     if not pdf_files:
         print("⚠️ No PDF files found!")
     else:
@@ -48,13 +45,3 @@ if __name__ == "__main__":
             out_folder = os.path.join(output_base, os.path.splitext(pdf)[0])
             print(f"\nConverting {pdf} ...")
             convert_pdf_to_images(pdf_path, out_folder)
-
-
-# # To check given pdf have text layer or not?
-# import fitz
-
-# doc = fitz.open("your_file.pdf")
-# page = doc[0]
-# text = page.get_text("text")
-# print(len(text))
-
