@@ -1,0 +1,28 @@
+NoteScan
+CHAPTER 3: PROBLEM STATEMENT
+
+The problem addressed in this project is the lack of an end-to-end Al-powered system that
+converts handwritten or scanned PDFs into structured, study-ready digital content.
+Traditional OCR tools are effective for printed text but perform poorly on handwriting due to
+variations in style, image quality, and noise. Moreover, most tools stop at raw text extraction
+and do not provide meaningful summarization, structuring, or presentation features.
+NoteScan is proposed as a comprehensive solution that integrates Computer Vision CV for
+preprocessing, Deep Learning models for handwriting recognition, and Natural Language
+Processing NLP for cleaning, summarization, and structuring. The system will also generate
+PowerPoint slides and export results in multiple formats such as TXT, DOCX, PDF, and
+PPTX.
+3.1 Identification and Formulation of a Problem
+Handwritten notes remain common in classrooms, workshops, and research settings, yet
+digitizing them into usable formats is still challenging. Current limitations include:
+
+e Inconsistent handwriting styles, lowering recognition accuracy.
+
+e Low-quality scans with noise or skew.
+
+e Unstructured outputs, where extracted text is not ready for study or presentation.
+3.2 Need and Significance of Proposed Work
+The proposed work is significant because it provides a complete Al-driven pipeline rather
+than a single-step OCR tool. NoteScan enhances productivity, ensures multi-format export
+and cross-device access, and caters specifically to educational and professional needs,
+making it more impactful than existing systems.
+DAV University 8

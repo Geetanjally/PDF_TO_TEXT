@@ -1,0 +1,29 @@
+NoteScan
+CHAPTER 5: Methodology
+5.1 Input Acquisition
+ce Users upload scanned handwritten PDFs.
+o PDFs converted into images using PyMuPDF or pdf2image.
+5.2 Preprocessing Computer Vision
+o Applied using OpenCV.
+ce Techniques:
+m Noise removal
+m Thresholding
+m Skew correction
+ce Purpose: To improve OCR accuracy.
+5.3 OCR  Text Extraction
+ce Baseline Model: Tesseract OCR for printed text.
+ce Advanced Models: CRNN and TrOCR for handwritten text.
+o Enables recognition across varied handwriting styles.
+5.4 Text Cleaning  NLP Processing
+ce Libraries: NLTK, SpaCy.
+ Tasks performed:
+m Tokenization
+m Stopword removal
+m Lemmatization  POS tagging
+m Named Entity Recognition NER
+ Outcome: Clean, structured, and grammatically consistent text.
+5.5 Summarization  Note-Making
+eo Extractive Models: TextRank, BertSum.
+co Abstractive Models: BART, T5.
+ Outputs:
+DAV University 10

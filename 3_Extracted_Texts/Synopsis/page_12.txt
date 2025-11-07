@@ -1,0 +1,17 @@
+NoteScan
+CHAPTER 6: CONCLUSION
+
+NoteScan provides an innovative step forward in digitizing and structuring handwritten and
+scanned notes. Unlike traditional OCR systems that only extract raw text, NoteScan leverages
+Computer Vision, NLP, and Deep Learning to deliver accurate recognition along with
+structured and summarized outputs. This combination reduces manual effort, making study
+materials and professional documents easier to prepare and share.
+The systems ability to generate clean text, concise summaries, and even PowerPoint
+presentations highlights its versatility. By integrating advanced summarization models like
+BART and T5, NoteScan ensures that the content is not only digitized but also transformed
+into meaningful, study-ready formats.
+With its user-friendly interface, NoteScan caters to students, educators, and professionals
+alike. As AI in EdTech continues to expand, this project demonstrates how technology can
+improve productivity, accessibility, and efficiency, ultimately contributing to smarter and
+more effective content digitization solutions.
+DAV University 12

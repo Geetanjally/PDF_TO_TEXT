@@ -1,0 +1,27 @@
+NoteScan
+1.2 Advantages
+e Time-Saving: Eliminates manual rewriting and structuring of handwritten notes.
+e Multi-Format Support: Exports to multiple file formats for academic and professional
+use.
+e Accessibility: Cross-device support ensures that notes can be accessed anytime,
+anywhere.
+e Enhanced Usability: Summarization and presentation generation add value beyond
+text recognition.
+1.3 Disadvantages
+e Accuracy may vary with extremely poor handwriting or low-quality scans.
+e Requires internet access for cloud-based processing and NLP integration.
+ Initial computational cost for deep learning models may be high.
+1.4 Steps of Working
+1, User uploads a scanned handwritten PDF.
+2. Preprocessing techniques clean the input for better recognition.
+3. OCR and deep learning models extract raw handwritten text.
+4. NLP modules clean, summarize, and structure the content.
+5. PPT slides and formatted study material are auto-generated.
+6. User downloads outputs in multiple formats.
+1.5 Architecture
+e Frontend: Streamlit-based interface for uploads, previews, and downloads.
+e Backend: Python-based pipeline integrating OCR Tesseract, Deep Learning models,
+NLP transformers for summarization, text cleaning.
+e Storage  Export: Files are processed and exported into TXT, DOCX, PDF, and
+PPTX formats.
+DAV University 4

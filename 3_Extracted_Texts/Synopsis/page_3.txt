@@ -1,0 +1,29 @@
+NoteScan
+CHAPTER 1: INTRODUCTION
+In todays academic and professional environments, a large volume of information continues
+to be handwritten, particularly in classrooms, research discussions, and workshops. While
+digital transformation has advanced rapidly, converting handwritten notes into structured,
+reusable digital content remains a challenge. Traditional OCR Optical Character
+Recognition systems work effectively for printed text but face major limitations with
+handwritten inputs due to varied writing styles, inconsistent spacing, and noisy scanned
+backgrounds.
+NoteScan is designed to bridge this gap by providing an Al-powered solution that transforms
+handwritten or scanned PDF notes into structured, study-ready formats. Unlike conventional
+OCR tools, NoteScan integrates Computer Vision CV, Deep Learning DL, and Natural
+Language Processing NLP techniques to go beyond raw text extraction. It converts scanned
+handwriting into cleaned, structured notes, generates concise summaries, and even creates
+ready-to-use PowerPoint slides. This makes it a complete academic assistant for students,
+teachers, researchers, and professionals.
+1.1 Features
+e Automated Handwriting Recognition: Advanced OCR and deep learning models to
+extract text from handwritten and scanned PDFs.
+e Content Structuring: Intelligent grammar correction, segmentation, and formatting for
+readability.
+e Summarization  Notes: NLP-based summarization for bullet points and concise
+study notes.
+e PPT Generation: Automatic slide creation highlighting key points, diagrams, and flow
+of concepts.
+e Multi-format Export: Outputs in TXT, DOCX, PDF, and PPTX formats for wide
+usability.
+e User Interface: A Streamlit-based platform for easy uploads and direct downloads.
+DAV University 3

@@ -1,0 +1,5 @@
+NoteScan
+The current market lacks a dedicated solution that transforms handwritten content into
+educationally usable resources. Existing tools stop at text recognition but fail to provide
+semantic structuring and multi-format outputs tailored for students and educators.
+DAV University 7

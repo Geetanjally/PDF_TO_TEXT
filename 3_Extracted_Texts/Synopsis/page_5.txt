@@ -1,0 +1,13 @@
+NoteScan
+1.6 Scope
+e NoteScan is not limited to academic use but can also benefit researchers, corporate
+professionals, and institutions handling handwritten manuscripts or reports. Future
+improvements may include multi-language handwriting support, mobile app
+integration, and cloud storage synchronization.
+1.7 Significance
+This project represents a step forward in EdTech innovation, addressing the gap between
+handwritten input and digital usability. By delivering structured notes, summaries, and
+presentations, NoteScan enhances learning efficiency, reduces manual effort, and promotes
+digital accessibility. Its holistic approach makes it more powerful than traditional OCR tools
+and positions it as a valuable tool in both education and professional fields.
+DAV University 5

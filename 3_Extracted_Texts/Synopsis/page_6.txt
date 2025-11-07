@@ -1,0 +1,28 @@
+NoteScan
+CHAPTER 2: LITERATURE SURVEY
+This survey reviews key platforms that convert scanned PDFs to PowerPoint using Optical
+Character Recognition OCR.
+1. Adobe Acrobat
+e Description: An industry-leading tool that uses robust OCR to convert scanned PDFs.
+e Pros: High-quality conversion, excellent preservation of formatting.
+e Cons: Requires a paid subscription for full features.
+e Link: Adobe Acrobat PDF to PPT Converter
+2. Smallpdf
+e Description: An online, user-friendly platform with a combined PDF to PPT and OCR
+tool.
+e Pros: Simple, all-in-one workflow; emphasizes security.
+e Cons: OCR is a paid Pro feature.
+e  Link: Smallpdf PDF to PPT Converter
+3. Nitro
+e Description: A free online tool that uses OCR to convert scanned PDFs to PPT.
+e Pros: Free to use, no registration needed, browser-based.
+e Cons: Paid desktop version Nitro Pro is required for advanced features like batch
+processing.
+e Link: Nitro PDF to PPT Converter
+2.2 Limitations of Existing Systems
+e Focus only on basic text extraction rather than contextual refinement.
+e Struggle with noisy classroom notes, mixed diagrams, and inconsistent handwriting.
+e Limited or no support for generating study-ready formats such as bullet points,
+summaries, or slides.
+2.3 Gap Analysis
+DAV University 6

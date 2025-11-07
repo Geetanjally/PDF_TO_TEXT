@@ -1,0 +1,18 @@
+NoteScan
+CHAPTER 4: OBJECTIVES
+1. What to Do
+The project aims to automate the process of converting handwritten or scanned PDFs into
+structured, summarized, and presentation-ready formats.
+2. Tools and Technologies Used
+The system will be developed using Python with libraries like Tesseract OCR, OpenCV, and
+PyTorchTensorFlow for handwriting recognition, NLTKTransformers for NLP tasks, and
+Streamlit for the web interface.
+3. How to Do It
+e Extracting handwritten text with OCR and deep learning models.
+e Cleaning and structuring the extracted text into readable formats.
+e Summarizing notes using NLP models.
+e Automatically generating PowerPoint slides from summarized key points.
+4. Expected Outcome
+The project will deliver a user-friendly platform where students or professionals can upload
+handwritten PDFs and download processed results in TXT, DOCX, PDF, and PPTX formats.
+DAV University 9

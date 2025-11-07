@@ -1,0 +1,30 @@
+NoteScan
+m Bullet points
+m Concise summaries
+m Detailed notes
+5.6 PowerPoint Generation
+ Tool: python-pptx.
+o Converts structured text into slides with headings, subpoints, and
+diagrams.
+5.7 User Interface
+o Framework: Streamlit.
+o Features:
+m Upload PDF option
+m Download outputs TXT, DOCX, PDF, PPTX
+m Clean and user-friendly interface.
+5.8 Tools  Technologies
+e Programming Language: Python
+e Computer Vision  OCR: OpenCV, PyMuPDF, pdf2image, Pytesseract
+e Deep Learning Models: CRNN, TrOCR HuggingFace
+e NLP Libraries  Models: NLTK, SpaCy, BERT, BART, T5S
+e Summarization Frameworks: HuggingFace Transformers
+e PPT Generation: python-pptx
+e Interface Development: Streamlit
+e EnvironmentsIDEs: Jupyter Notebook, VS Code, Google Colab
+5.9 Expected Outcomes
+e Clean, editable text extracted from handwrittenprinted PDFs.
+e Structured notes in bullet point and detailed formats.
+e Automatically generated PowerPoint slides.
+e Export options: TXT, DOCX, PDF, PPTX.
+e Simple and accessible Streamlit interface for deployment.
+DAV University 11
