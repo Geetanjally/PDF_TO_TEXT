@@ -1,19 +1,18 @@
 import os
 import cv2
-from classify_image_type import is_image_digital
-from preprocess import preprocess_for_paddleocr, preprocess_for_tesseract
-from ocr_engine import extract_text_tesseract, extract_text_paddleocr
+from preprocess import preprocess_for_tesseract
+from ocr_engine import extract_text_tesseract, extract_text_google_vision
 from combine_texts import combine_texts_in_folder
+from classify_image_type import is_image_digital
+
+# ⚙️ LIMIT TRACKER — prevent overuse of Google Vision API
+MAX_GOOGLE_VISION_CALLS = 2   # <— change this limit as per your plan
+google_calls_used = 0
 
 
 def process_folder(input_folder, output_folder):
-    """
-    Process all images in a folder:
-    1. Detect if image is handwritten or digital.
-    2. Apply appropriate preprocessing.
-    3. Perform OCR using PaddleOCR (for handwritten) or Tesseract (for digital).
-    4. Save extracted text in a structured output folder.
-    """
+    global google_calls_used  # To keep track across files
+
     if not os.path.exists(input_folder):
         print(f"❌ Input folder not found: {input_folder}")
         return
@@ -30,7 +29,6 @@ def process_folder(input_folder, output_folder):
                 print(f"⚠️ Skipping unreadable file: {img_path}")
                 continue
 
-            # Create corresponding output folder structure
             relative_path = os.path.relpath(root, input_folder)
             sub_output_folder = os.path.join(output_folder, relative_path)
             os.makedirs(sub_output_folder, exist_ok=True)
@@ -42,9 +40,15 @@ def process_folder(input_folder, output_folder):
                     processed = preprocess_for_tesseract(img)
                     text = extract_text_tesseract(processed)
                 else:
-                    print(f"\n✍️  {fname} detected as HANDWRITTEN.")
-                    processed = preprocess_for_paddleocr(img)
-                    text = extract_text_paddleocr(processed)
+                    print(f"\n✍️  {fname} detected as HANDWRITTEN or MIXED.")
+                    
+                    # ⚙️ Stop if you've hit your safe Vision API limit
+                    if google_calls_used >= MAX_GOOGLE_VISION_CALLS:
+                        print("⚠️ Vision API daily limit reached. Skipping this image to save credits.")
+                        continue
+
+                    text = extract_text_google_vision(img_path)
+                    google_calls_used += 1  # count this call
 
                 # 💾 Step 2: Save extracted text
                 text_file_path = os.path.join(sub_output_folder, os.path.splitext(fname)[0] + ".txt")
@@ -55,19 +59,18 @@ def process_folder(input_folder, output_folder):
             except Exception as e:
                 print(f"❌ Error processing {fname}: {e}")
 
-    print("\n🎯 All images processed successfully!")
+    print(f"\n🎯 All images processed successfully! (Google Vision used {google_calls_used}/{MAX_GOOGLE_VISION_CALLS})")
 
 
 if __name__ == "__main__":
-    # 📁 Folder paths (update as needed)
-    input_folder = r"G:\Project\PDF_TO_TEXT\1_pdf_to_image\output_images"
-    output_folder = r"G:\Project\PDF_TO_TEXT\3_Extracted_Texts"
+    # input_folder = r"G:\Project\PDF_TO_TEXT\1_pdf_to_image\output_images"
+    input_folder = r"G:\Project\PDF_TO_TEXT\2_OpenCV_OCR\test_input"
+    # output_folder = r"G:\Project\PDF_TO_TEXT\3_Extracted_Texts"
+    output_folder = r"G:\Project\PDF_TO_TEXT\2_OpenCV_OCR\test_output"
     combined_output_folder = r"G:\Project\PDF_TO_TEXT\4_Combined_text"
 
-    # 🚀 Step 1: OCR processing (per image)
     process_folder(input_folder, output_folder)
 
-    # 📄 Step 2: Combine all text files into one per folder
     print("\n📄 Combining extracted text files per folder...")
     combine_texts_in_folder(output_folder)
 

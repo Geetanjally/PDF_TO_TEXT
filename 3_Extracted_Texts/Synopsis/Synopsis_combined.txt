@@ -4,6 +4,10 @@
 
 
 
+---- page_1.txt ----
+
+
+
 ---- page_10.txt ----
 
 NoteScan
@@ -88,6 +92,10 @@ alike. As AI in EdTech continues to expand, this project demonstrates how techno
 improve productivity, accessibility, and efficiency, ultimately contributing to smarter and
 more effective content digitization solutions.
 DAV University 12
+
+---- page_13.txt ----
+
+
 
 ---- page_2.txt ----
 
