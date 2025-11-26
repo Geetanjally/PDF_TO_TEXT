@@ -1,73 +1,92 @@
-import warnings
-warnings.filterwarnings("ignore")
-
 import os
 import re
+import time
 import pytesseract
-from google.cloud import vision
-
-# ✅ Configure Tesseract path for printed/digital text
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
-# ✅ Initialize Google Vision API client
-try:
-    vision_client = vision.ImageAnnotatorClient()
-    print("✅ Google Vision API client initialized successfully!")
-except Exception as e:
-    print("⚠️ Google Vision initialization failed:", e)
-    vision_client = None
+from google.genai import Client
+from google.genai.types import Image,GenerateContentConfig
 
 
-# -------------------------------------------------------------------
-# OCR METHODS
-# -------------------------------------------------------------------
+# ------------------------------
+# 1️⃣ BETTER TESSERACT (Printed)
+# ------------------------------
 
-def extract_text_tesseract(image):
+def extract_text_tesseract(image, timeout=10, max_retries=2):
     """
-    Extract printed/digital text using Tesseract OCR.
-    `image` should be a NumPy array (like cv2.imread result).
+    Improved Tesseract OCR for printed/digital text.
+    Includes timeout + retries.
     """
-    try:
-        config = r"--psm 6 --oem 3"
-        text = pytesseract.image_to_string(image, config=config)
-        clean_text = re.sub(r'[^A-Za-z0-9.,!?;:\'\-\s]', '', text)
-        print("🔍 Tesseract text extraction successful!")
-        return clean_text.strip()
-    except Exception as e:
-        print("❌ Tesseract OCR failed:", e)
-        return ""
+    for attempt in range(1, max_retries + 1):
+        try:
+            start = time.time()
+
+            config = r"--psm 6 --oem 3"
+            text = pytesseract.image_to_string(image, config=config)
+
+            if time.time() - start > timeout:
+                raise TimeoutError("Tesseract timeout")
+
+            # Clean text
+            clean_text = re.sub(r'[^A-Za-z0-9.,!?;:\'\"\-\s]', '', text)
+
+            print("🔍 Tesseract text extraction successful!")
+            return clean_text.strip()
+
+        except Exception as e:
+            print(f"⚠️ Tesseract attempt {attempt}/{max_retries} failed:", e)
+            if attempt < max_retries:
+                print("🔁 Retrying Tesseract...")
+                time.sleep(1)
+            else:
+                print("❌ Tesseract OCR failed finally.")
+                return ""
 
 
-def extract_text_google_vision(image_path):
-    """
-    Extract text using Google Cloud Vision API.
-    `image_path` should be a file path to an image.
-    """
-    if vision_client is None:
-        print("⚠️ Google Vision client not initialized.")
-        return ""
 
-    try:
-        with open(image_path, "rb") as img_file:
-            content = img_file.read()
+# ---------------------------------
+# 2️⃣ FIXED GEMINI (Handwritten)
+# ---------------------------------
 
-        image = vision.Image(content=content)
-        response = vision_client.text_detection(image=image)
+client = Client(api_key="AIzaSyAzHf66I6a1uHUbC1-PnFCK6KyBUZTOJYI")  # replace with your key
 
-        if response.error.message:
-            print("⚠️ Google Vision API Error:", response.error.message)
-            return ""
+def extract_text_gemini(image_path, timeout=20, max_retries=3):
+    model_name = "models/gemini-2.0-flash"
 
-        texts = response.text_annotations
-        if not texts:
-            print("⚠️ No text detected by Google Vision.")
-            return ""
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"✨ Gemini OCR attempt {attempt}/{max_retries}")
 
-        full_text = texts[0].description.strip()
-        clean_text = re.sub(r'[^A-Za-z0-9.,!?;:\'\-\s\n]', '', full_text)
-        print("🧠 Google Vision text extraction successful!")
-        return clean_text.strip()
+            # Upload image file
+            uploaded_file = client.files.upload(file=image_path)
 
-    except Exception as e:
-        print("❌ Google Vision OCR failed:", e)
-        return ""
+            config = GenerateContentConfig(
+                temperature=0,
+                max_output_tokens=4096
+            )
+
+            # 🔥 MAIN FIX:
+            # contents expects a LIST where each item is:
+            #   - str
+            #   - File   (directly)
+            #   - Image
+            #   - Part
+            response = client.models.generate_content(
+                model=model_name,
+                config=config,
+                contents=[
+                    uploaded_file,  # 👈 File object passed directly
+                    (
+                        "Extract all text exactly as written. "
+                        "Preserve formatting, equations, bullets, and line breaks."
+                    )
+                ]
+            )
+
+            text = getattr(response, "text", "")
+            return text.strip()
+
+        except Exception as e:
+            print(f"⚠️ Gemini attempt {attempt}/{max_retries} failed: {e}")
+            if attempt < max_retries:
+                time.sleep(2)
+            else:
+                return ""
