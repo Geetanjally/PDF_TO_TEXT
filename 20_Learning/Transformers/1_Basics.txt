@@ -1,0 +1,57 @@
+📌 Step 1 — Start with Extractive Techniques (Foundation)**
+
+These do NOT generate new text.
+They only **pick important sentences**.
+
+### **1️⃣ TextRank (First) — Easiest**
+* Graph-based
+* No deep learning
+* Helps you understand summary **ranking**
+* Useful for simple bullet points
+
+✔ Start here.
+Bidirectional Encoder Representations from Transformers
+### **2️⃣ BERTSum (Next) — Extractive Using BERT**
+* BERT encoder + classifier to select important sentences
+* More accurate than TextRank
+* Gives you idea of **transformer-based extractive summarization**
+
+✔ Study after TextRank.
+
+
+## **📌 Step 2 — Move to Abstractive Techniques (Generation Models)**
+
+These models **rewrite**, paraphrase, and generate text.
+
+### **3️⃣ T5 (Third) — Best Starting Point for Abstractive Summaries**
+* Very flexible (“summarize:”, “explain:”, “rewrite:”)
+* Easy HuggingFace usage
+* Perfect for notes, bullet points, simplified text
+
+✔ This should be your **first abstractive model**.
+
+
+### **4️⃣ BART (Fourth) — More Advanced, Similar to T5**
+* Also great for summarization
+* But slightly heavier
+* Provides more “human-like” summaries
+
+✔ Study after T5.
+
+
+
+📌 Full Recommended Sequence
+
+1. TextRank (Extractive, Traditional) → understand basic summarization
+2. BERTSum (Extractive + Transformers) → understand how transformers select sentences
+
+3. T5 (Abstractive, Easy, Flexible) → start generating summaries and notes
+4. BART (Abstractive, More Advanced) → learn higher-level text generation
+
+
+
+
+Model choices & defaults
+1. Fast/cheap baseline: TextRank → T5-base (CPU-friendly)
+2. Better quality: BERTSum (extractive) + T5-large or BART-large (abstractive)
+3. If documents are very long: use LongT5 / BigBird / Pegasus-Long or chunk+summarize+merge.

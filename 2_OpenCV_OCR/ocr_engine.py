@@ -75,8 +75,10 @@ def extract_text_gemini(image_path, timeout=20, max_retries=3):
                 contents=[
                     uploaded_file,  # 👈 File object passed directly
                     (
-                        "Extract all text exactly as written. "
-                        "Preserve formatting, equations, bullets, and line breaks."
+                        "Extract ALL text accurately. "
+                        "Preserve formatting, steps, bullet points, equations, "
+                        "indentation, tables, and line breaks. "
+                        "Do NOT summarize. Return ONLY the raw text."
                     )
                 ]
             )

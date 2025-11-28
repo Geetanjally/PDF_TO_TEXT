@@ -1,0 +1,66 @@
+
+
+---- combined_output.txt ----
+
+
+==================================================
+
+
+---- page_1.txt ----
+
+-டட
+DATA MINING
+Introduction-
+DATA Mining Concepts -
+Data Mining - Data Mining is the process of extracting insights
+from large datasets using statistical and
+computational tectiriques,
+It can involve structured, Semi-structured
+ar unstructed data stored in databases,
+data warehouses or data lakes.
+Data mining involves many algorithms to accomplish different
+tasks.
+- me we & make
+* TODAY, DATA is being generated at a rapid phase, everyti-
+a dick to purchase anything that genera-
+tes an info of data from the companies to make smart
+decisions understand ustomer behaviour and stay
+competative is called data Mining
+DATA MINING- It is the process of extracting useful
+insides and knowledge from large datasets.
+It involves applying techniques like statistics, ML and
+database systerns to find hidden patterns relationshi-
+ps and trends.
+There insides help them to solve business problems in
+2 processes, and make future predictions.
+COMMON APPLICATIONS OF DATA MINING-
+① Customer Segmentation.
+② Marbet Basket Analysis,
+DOMS
+==================================================
+
+
+---- page_2.txt ----
+
+3
+③ Predictive Modeling.
+It is widely used across industries like finance, healthcars
+retail and telicommunication to make informed decisions.
+The core components of this field are ML, Statics,
+database system, dataware house, information
+retrival, high performance computing, its applications,
+algorithm, Vizulization, pattern recognization.
+Imb
+PROCESS OF DATAMINING-
+①Data Cleaning And Integration - (Extract's relevant data)
+② Data Pre Processing - (Removes, noisy data and missing
+values
+values
+③ Pattern Recognization & ML. (Classification, Clustering.
+Regression).
+④ Stastistical Analysis (Mean, Mode, Median)
+4
+⑤ Evaluation and interpretuation.
+5
+⑥ Data Presentation & Visulization.
+==================================================

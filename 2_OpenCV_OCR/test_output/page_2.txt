@@ -1,0 +1,21 @@
+3
+③ Predictive Modeling.
+It is widely used across industries like finance, healthcars
+retail and telicommunication to make informed decisions.
+The core components of this field are ML, Statics,
+database system, dataware house, information
+retrival, high performance computing, its applications,
+algorithm, Vizulization, pattern recognization.
+Imb
+PROCESS OF DATAMINING-
+①Data Cleaning And Integration - (Extract's relevant data)
+② Data Pre Processing - (Removes, noisy data and missing
+values
+values
+③ Pattern Recognization & ML. (Classification, Clustering.
+Regression).
+④ Stastistical Analysis (Mean, Mode, Median)
+4
+⑤ Evaluation and interpretuation.
+5
+⑥ Data Presentation & Visulization.

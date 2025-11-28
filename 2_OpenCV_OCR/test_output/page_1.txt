@@ -1,41 +1,29 @@
-0
-1
-2
-3
-4
-5
-G
-Start I
-3
-2
-0
-5
-8111
-End
-3
-4
-5
-។
-9
-10 12
-START [6] >= END [4], Selected
-Start = [1, 3, 2,0,5,8,11]
-finish = [3, 4, 5, 7, 9, 10, 12]
-Selected = {0, 1, 4, 64.
-KNAPSACK PROBLEM
-Here knapsack is like a container or abag..
-Suppose, we are
-and
-• some items with some
-given some
-garden weights or profits, we have to put
-some items in the knapsack in such a way
-that the total value produces a maximum
-I profit.
-Eg: The weight of a containter is 20kg. We
-have to select the items in such a way that
-the sum of the weights should be either
-smaller than ovequel to the weight of the
-I container, and the profit should be maximu
-There are two types of knapsack problems:
-ⅰ) 0/1 Knapsack Problem
+-டட
+DATA MINING
+Introduction-
+DATA Mining Concepts -
+Data Mining - Data Mining is the process of extracting insights
+from large datasets using statistical and
+computational tectiriques,
+It can involve structured, Semi-structured
+ar unstructed data stored in databases,
+data warehouses or data lakes.
+Data mining involves many algorithms to accomplish different
+tasks.
+- me we & make
+* TODAY, DATA is being generated at a rapid phase, everyti-
+a dick to purchase anything that genera-
+tes an info of data from the companies to make smart
+decisions understand ustomer behaviour and stay
+competative is called data Mining
+DATA MINING- It is the process of extracting useful
+insides and knowledge from large datasets.
+It involves applying techniques like statistics, ML and
+database systerns to find hidden patterns relationshi-
+ps and trends.
+There insides help them to solve business problems in
+2 processes, and make future predictions.
+COMMON APPLICATIONS OF DATA MINING-
+① Customer Segmentation.
+② Marbet Basket Analysis,
+DOMS

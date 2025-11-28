@@ -4,6 +4,8 @@ from preprocess import preprocess_for_tesseract
 from ocr_engine import extract_text_tesseract, extract_text_gemini
 from combine_texts import combine_texts_in_folder
 from classify_image_type import is_image_digital
+from gemini_processing import clean_with_gemini
+from final_output_generator import export_all_outputs
 
 
 def process_folder(input_folder, output_folder):
@@ -84,11 +86,41 @@ if __name__ == "__main__":
 
     input_folder = r"G:\Project\PDF_TO_TEXT\2_OpenCV_OCR\test_input"
     output_folder = r"G:\Project\PDF_TO_TEXT\2_OpenCV_OCR\test_output"
-    combined_output_folder = r"G:\Project\PDF_TO_TEXT\4_Combined_text"
+    combined_output_folder = r"G:\Project\PDF_TO_TEXT\2_OpenCV_OCR\test_output"
 
     process_folder(input_folder, output_folder)
 
     print("\n📄 Combining all extracted text files...")
-    combine_texts_in_folder(output_folder)
+    combined_text_path = combine_texts_in_folder(output_folder)
 
-    print(f"\n✅ Combined text files saved in: {combined_output_folder}")
+    # 🔥 Prevent crash
+    if not combined_text_path:
+        print("❌ ERROR: No combined text file was created. Check combine_texts_in_folder().")
+        exit()
+
+    print(f"\n✅ Combined text file saved at: {combined_text_path}")
+
+    # ------------------------------------
+    # STEP 4 — Clean using Gemini
+    # ------------------------------------
+    print("\n🤖 Sending combined text to Gemini for formatting...")
+
+    with open(combined_text_path, "r", encoding="utf-8") as f:
+        raw_text = f.read()
+
+    cleaned_text = clean_with_gemini(raw_text)
+
+    # ------------------------------------
+    # STEP 5 — Generate PDF, DOCX, PPT
+    # ------------------------------------
+    final_output_dir = r"G:\Project\PDF_TO_TEXT\5_Final_Outputs"
+    os.makedirs(final_output_dir, exist_ok=True)
+
+    export_all_outputs(
+        text=cleaned_text,
+        output_folder=final_output_dir,
+        base_name="Final_Output"
+    )
+
+    print("\n🎉 All outputs generated successfully!")
+    print(f"📂 Output folder: {final_output_dir}")
