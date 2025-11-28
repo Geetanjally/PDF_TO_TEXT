@@ -5,6 +5,7 @@ from ocr_engine import extract_text_tesseract, extract_text_gemini
 from combine_texts import combine_texts_in_folder
 from classify_image_type import is_image_digital
 from gemini_processing import clean_with_gemini
+from ppt_formation import create_pptx_from_text
 from final_output_generator import export_all_outputs
 
 
