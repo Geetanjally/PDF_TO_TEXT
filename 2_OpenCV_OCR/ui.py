@@ -9,10 +9,13 @@ from core_document_generator import (
     process_document_to_cleaned_text,
     generate_initial_structure,
     update_structure,
-    create_pptx,
+    # REMOVED: create_pptx (Now handled by pptx_designer.py)
     create_docx,
     create_markdown_report
 )
+
+# --- NEW IMPORT for the advanced PPTX generation ---
+from pptx_designer import create_pptx_with_style # <--- NEW: Using the enhanced function
 
 # --------------------------------
 # CONFIGURATION
@@ -25,7 +28,7 @@ MODEL_NAME = "models/gemini-2.5-flash"
 # --- DESIGN SETTINGS: Dynamic Template Folder (Not used in this in-memory example, but kept for context) ---
 TEMPLATE_DIR = "templates"
 DYNAMIC_TEMPLATE_OPTIONS = {} # Holds the loaded options
-# -----------------------\r\n
+# -------------------------------
 
 # --- SESSION STATE INITIALIZATION ---
 # Initialize session state variables if they don't exist
@@ -145,6 +148,7 @@ def main():
 
     if uploaded_template:
         # Read the file data into session state as bytes for core function use
+        # This allows the function to use io.BytesIO(data) to load the presentation
         st.session_state.uploaded_template_data = uploaded_template.read()
         st.sidebar.success(f"Template '{uploaded_template.name}' loaded.")
     else:
@@ -206,8 +210,11 @@ def main():
             final_json = st.session_state.blueprint_json
             
             # --- PPTX Generation ---
-            # Pass the uploaded template data (or None) to the creation function
-            pptx_stream, pptx_error = create_pptx(final_json, st.session_state.uploaded_template_data)
+            # NOTE: Calling the new function 'create_pptx_with_style' and passing the raw template data bytes
+            pptx_stream, pptx_error = create_pptx_with_style(
+                final_json, 
+                st.session_state.uploaded_template_data # <--- Passing the template bytes
+            )
             
             if pptx_stream:
                 st.download_button(
@@ -219,7 +226,7 @@ def main():
             elif pptx_error:
                  st.error(f"PPTX Error: {pptx_error}")
             
-            # --- DOCX Generation ---
+            # --- DOCX Generation (Unchanged) ---
             docx_stream, docx_error = create_docx(final_json)
             if docx_stream:
                 st.download_button(
@@ -231,7 +238,7 @@ def main():
             elif docx_error:
                  st.error(f"DOCX Error: {docx_error}")
 
-            # --- Markdown Generation ---
+            # --- Markdown Generation (Unchanged) ---
             markdown_content, markdown_error = create_markdown_report(final_json)
             if markdown_content:
                 st.download_button(
