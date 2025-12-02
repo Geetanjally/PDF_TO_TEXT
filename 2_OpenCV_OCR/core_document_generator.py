@@ -5,14 +5,12 @@ import os
 import base64
 from google import genai
 from google.genai import Client
-from google.genai.types import Content, Part, GenerateContentConfig # Ensure Part is imported
+from google.genai.types import Content, Part, GenerateContentConfig
 from PIL import Image
 
 # --- Conditional Imports for Libraries used in the advanced pipeline ---
-# The main app (streamlit_app.py) handles the installation check and displays warnings.
 try:
-    # Use the local pptx_designer.py file for the advanced function
-    from pptx_designer import create_pptx_with_style as create_pptx 
+    from pptx_designer import create_pptx_with_style as create_pptx
 except ImportError:
     create_pptx = None
     
@@ -26,7 +24,6 @@ try:
 except ImportError:
     fitz = None
 
-# OCR and Image Classification dependencies
 try:
     import pytesseract
 except ImportError:
@@ -35,7 +32,6 @@ except ImportError:
 try:
     import cv2
     import numpy as np
-    # NOTE: We assume the user has configured Tesseract PATH if using Windows/Linux
 except ImportError:
     cv2 = None
     np = None
@@ -50,13 +46,7 @@ except ImportError:
 # --------------------------------
 # CONFIGURATION
 # --------------------------------
-# Global client for Gemini Vision/Handwritten OCR
 GENAI_CLIENT = None
-# --------------------------------
-
-
-# --------------------------------
-# HELPER 1: IMAGE CLASSIFICATION (NOT IMPLEMENTED/REQUIRED FOR THIS FLOW)
 # --------------------------------
 
 # --------------------------------
@@ -102,16 +92,11 @@ def extract_text_gemini(image_bytes, api_key):
     except ValueError as e:
         return None, str(e)
         
-    # --- FIX APPLIED HERE: Correct usage of Part.from_bytes and Part.from_text ---
-    # The current SDK (v1.52.0) requires data to be passed correctly.
-    # The traceback suggests an old SDK was confusing arguments. This pattern is robust.
-    
     parts = [
-        # 1. Image part using the correct Part.from_bytes signature
+        # 1. Image part
         Part.from_bytes(data=image_bytes, mime_type="image/png"),
         
-        # 2. Text instruction part using the correct Part.from_text signature
-        # This addresses the "takes 1 positional argument but 2 were given" error.
+        # 2. Text instruction part
         Part.from_text(text="Extract ALL text accurately from this image. Preserve line breaks and formatting. Do NOT summarize or add commentary. Return ONLY the raw text."),
     ]
     
@@ -120,7 +105,7 @@ def extract_text_gemini(image_bytes, api_key):
             client.models.generate_content,
             model="gemini-2.5-flash",
             contents=parts,
-            config=GenerateContentConfig(temperature=0.0) # Low temperature for extraction
+            config=GenerateContentConfig(temperature=0.0)
         )
         return response.text, None
         
@@ -132,24 +117,17 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
     """
     Processes an uploaded file (PDF/Image) to extract raw text, 
     then uses Gemini to clean and structure it.
+    
+    Args:
+        uploaded_file: The uploaded file object (e.g., Streamlit UploadedFile).
+        api_key (str): The Gemini API key.
     """
+    raw_text = None
+    
     if uploaded_file.type == "application/pdf":
-        # Simplified PDF handling for this flow: assume we are getting the image bytes
-        # from a PDF page for vision extraction, as suggested by the traceback flow.
-        # In a real app, this would involve converting PDF page to image bytes (fitz).
         pdf_bytes = uploaded_file.getvalue()
         
-        # --- Placeholder for PDF-to-Image conversion ---
-        # Assuming the external flow uses PyMuPDF (fitz) to get image bytes per page.
-        # For simplicity, we assume 'uploaded_file' is already the image byte stream 
-        # or that the caller handles page iteration and passes image_bytes to extract_text_gemini
-        # For now, we simulate a single image input for consistency with the traceback.
-        # This part of the file needs to be verified against the actual logic using fitz.
-        
-        # NOTE: The traceback shows: process_document_to_cleaned_text -> extract_text_gemini(img_bytes, ...)
-        # We will assume that PDF handling converts the first page to PNG bytes.
-        
-        # --- Using fitz to get image bytes for the first page ---
+        # --- Using fitz (PyMuPDF) to convert PDF page to image bytes ---
         if fitz:
             try:
                 doc = fitz.open(stream=pdf_bytes)
@@ -158,22 +136,27 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                 
                 # Convert pixmap to PNG bytes
                 img_bytes = pix.tobytes("png")
+                doc.close()
                 
-                # Now pass the image bytes to Gemini
+                # Now pass the image bytes to Gemini Vision for extraction
                 raw_text, error = extract_text_gemini(img_bytes, api_key)
                 if error:
                     return None, f"Extraction Error (PDF): {error}"
                 
             except Exception as e:
-                 return None, f"PDF Processing Error: {e}"
+                return None, f"PDF Processing Error: {e}"
         else:
-             return None, "PyMuPDF (fitz) library is missing, cannot process PDF."
-             
+            return None, "PyMuPDF (fitz) library is missing, cannot process PDF."
+            
     else: # Image file
         img_bytes = uploaded_file.getvalue()
         raw_text, error = extract_text_gemini(img_bytes, api_key)
         if error:
             return None, f"Extraction Error (Image): {error}"
+
+    # Check if raw text was successfully extracted before proceeding to cleaning
+    if not raw_text:
+        return None, "Raw text extraction failed or returned empty content."
 
     # Step 2: Use Gemini to clean and structure the extracted raw text
     clean_prompt = (
@@ -217,7 +200,6 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                 }
             )
         )
-        # The response.text will be a JSON string
         return response.text, None
         
     except Exception as e:
@@ -225,13 +207,12 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
 
 
 # --------------------------------
-# 3. STRUCTURE MANIPULATION FUNCTIONS (Simplified for this file)
+# 3. STRUCTURE MANIPULATION FUNCTIONS
 # --------------------------------
 
 def generate_initial_structure(input_text, system_instruction, api_key):
     """
     Generates an initial structured JSON for a given topic or existing text.
-    FIX: Updated signature to accept system_instruction as the second argument.
     """
 
     # If input_text is very short, assume it's a topic
@@ -249,7 +230,7 @@ def generate_initial_structure(input_text, system_instruction, api_key):
         "[\n"
         "  {\n"
         '    "title": "Slide Title",\n'
-        '    "bullets": ["Point 1", "Point 2", "..."]\n'
+        '    "content": ["Point 1", "Point 2", "..."]\n'
         "  }\n"
         "]"
     )
@@ -339,9 +320,9 @@ def update_structure(api_key, existing_json, user_prompt):
 # --------------------------------
 
 # NOTE: create_pptx is aliased to create_pptx_with_style from pptx_designer.py
-# If pptx is not installed, the alias will be None
 if create_pptx is None:
     def create_pptx(slides_data, template_data=None):
+        """Placeholder for PPTX creation if the required library is missing."""
         return None, "The 'python-pptx' library is not installed or the advanced designer could not be imported."
 
 

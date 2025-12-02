@@ -9,9 +9,9 @@ from core_document_generator import (
     process_document_to_cleaned_text,
     generate_initial_structure,
     update_structure,
-    # REMOVED: create_pptx (Now handled by pptx_designer.py)
     create_docx,
     create_markdown_report
+    # NOTE: refine_document_text_for_tables is excluded if not in core_document_generator.py
 )
 
 # --- NEW IMPORT for the advanced PPTX generation ---
@@ -21,13 +21,16 @@ from pptx_designer import create_pptx_with_style # <--- NEW: Using the enhanced 
 # CONFIGURATION
 # --------------------------------
 # Ensure your API key is set as an environment variable (GEMINI_API_KEY) or enter it below
-# NOTE: We now pass the API_KEY directly to the core functions
 API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyAzHf66I6a1uHUbC1-PnFCK6KyBUZTOJYI") 
 MODEL_NAME = "models/gemini-2.5-flash"
 
-# --- DESIGN SETTINGS: Dynamic Template Folder (Not used in this in-memory example, but kept for context) ---
+# --- DESIGN SETTINGS ---
 TEMPLATE_DIR = "templates"
 DYNAMIC_TEMPLATE_OPTIONS = {} # Holds the loaded options
+
+# NEW: Presentation Styles (The three default settings)
+PPT_STYLES = ["Professional", "Creative", "Basic"] 
+
 # -------------------------------
 
 # --- SESSION STATE INITIALIZATION ---
@@ -51,13 +54,86 @@ if 'uploaded_template_data' not in st.session_state:
 
 
 # --------------------------------
+# HELPER FUNCTION FOR PREVIEW (NEW)
+# --------------------------------
+
+def render_slide_preview(json_data, style_name="Professional"):
+    """
+    Renders a visual preview of the slides in Streamlit, simulating the chosen style's theme.
+    This simulates the "different tab" version of the PPT before downloading.
+    """
+    try:
+        data = json.loads(json_data)
+        st.info(f"👀 Below is a simplified preview of your slide content, simulating the **{style_name}** theme. The final PPTX will have the correct shapes and formatting.")
+        
+        # Define simple colors/fonts for the Streamlit preview based on the styles for visual feedback
+        preview_styles = {
+            "Professional": {"border": "#003366", "bg": "#f0f2f6"}, # Navy/Light Gray
+            "Creative": {"border": "#e65100", "bg": "#fff3e0"},      # Orange/Cream
+            "Basic": {"border": "#000000", "bg": "#ffffff"},         # Black/White
+            "Custom Template (Styles Ignored)": {"border": "#10b981", "bg": "#ecfdf5"}
+        }
+        theme = preview_styles.get(style_name, preview_styles["Professional"])
+        
+        # Grid layout for preview
+        cols = st.columns([1, 1])
+        
+        for i, slide in enumerate(data):
+            col_index = i % 2
+            with cols[col_index]:
+                # Use markdown with inline HTML/CSS for a styled card effect
+                slide_html = f"""
+                <div style="
+                    border: 3px solid {theme['border']}; 
+                    border-radius: 10px; 
+                    padding: 15px; 
+                    margin-bottom: 20px;
+                    background-color: {theme['bg']};
+                    box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+                ">
+                    <h5 style="color:{theme['border']}; margin-top: 0px; margin-bottom: 5px;">
+                        📄 Slide {i+1}: {slide.get('title', 'Untitled')}
+                    </h5>
+                    <hr style="border-top: 1px solid #ccc; margin-top: 5px; margin-bottom: 10px;">
+                """
+                
+                content = slide.get('content', [])
+                for point in content:
+                    point = point.strip()
+                    # Simulate bullet levels based on the pptx_designer logic
+                    if point.startswith("[CHART:"):
+                        slide_html += f'<p style="color: #9c27b0; font-style: italic;">📊 **Chart Placeholder:** {point.splitlines()[0]}...</p>'
+                    elif point.startswith("|"):
+                        slide_html += f'<p style="color: #00897b; font-style: italic;">🗓️ **Table Data:** {point.splitlines()[0]}...</p>'
+                    elif point.startswith('***'):
+                        slide_html += f'<p style="margin-left: 40px; font-weight: bold; margin-bottom: 0;">• {point.lstrip("***").strip()}</p>'
+                    elif point.startswith('**'):
+                         slide_html += f'<p style="margin-left: 20px; font-weight: normal; margin-bottom: 0;">• {point.lstrip("**").strip()}</p>'
+                    else:
+                        slide_html += f'<p style="margin-left: 0px; font-weight: normal; margin-bottom: 0;">• {point.lstrip("*").strip()}</p>'
+
+                slide_html += "</div>"
+                st.markdown(slide_html, unsafe_allow_html=True)
+                
+    except json.JSONDecodeError:
+        st.error("Could not render preview: Blueprint is not valid JSON.")
+    except Exception as e:
+        st.error(f"Could not render preview: {e}")
+
+
+# --------------------------------
 # CALLBACK FUNCTIONS
 # --------------------------------
 
 def run_extraction_and_cleaning(uploaded_file, api_key):
     """Callback to run the PDF extraction and Gemini cleaning pipeline."""
     with st.spinner("Step 1: Extracting text from PDF (including OCR fallback if needed)..."):
+        # Assuming process_document_to_cleaned_text handles the file bytes and type correctly
+        # file_bytes = uploaded_file.read()
+        # NOTE: The provided core_document_generator snippet doesn't show refine_document_text_for_tables
+        # We proceed assuming a simplified flow.
         cleaned_text, error = process_document_to_cleaned_text(uploaded_file, api_key)
+
 
     if error:
         st.error(f"Extraction/Cleaning Error: {error}")
@@ -100,11 +176,14 @@ def run_blueprint_update(user_instruction, api_key):
         return
 
     with st.spinner("Step 3: Updating blueprint based on instruction..."):
+        # Corrected call: Pass only 3 arguments in the correct order:
+        # 1. api_key
+        # 2. existing_json (st.session_state.blueprint_json)
+        # 3. user_prompt (user_instruction)
         updated_json, error = update_structure(
+            api_key,
             st.session_state.blueprint_json, 
-            user_instruction,
-            st.session_state.system_instruction, 
-            api_key
+            user_instruction
         )
         
     if error:
@@ -139,7 +218,7 @@ def main():
         
     st.sidebar.markdown("---")
     
-    # --- New Template Upload Feature ---
+    # --- Template Upload and Style Selection (UPDATED) ---
     uploaded_template = st.sidebar.file_uploader(
         "Optional: Upload PPTX Template",
         type="pptx",
@@ -147,13 +226,27 @@ def main():
     )
 
     if uploaded_template:
-        # Read the file data into session state as bytes for core function use
-        # This allows the function to use io.BytesIO(data) to load the presentation
+        # Template is uploaded: read bytes, lock style to 'Custom'
         st.session_state.uploaded_template_data = uploaded_template.read()
         st.sidebar.success(f"Template '{uploaded_template.name}' loaded.")
+        selected_style = "Custom Template (Styles Ignored)"
+        st.sidebar.selectbox(
+            "Presentation Style:", 
+            [selected_style], 
+            disabled=True,
+            help="Custom template overrides default styles."
+        )
+        st.sidebar.warning("Custom template overrides default styles.")
     else:
+        # No template: use one of the three default styles
         st.session_state.uploaded_template_data = None
         st.sidebar.info("Using default blank PowerPoint template.")
+        selected_style = st.sidebar.selectbox(
+            "Presentation Style:", 
+            PPT_STYLES, 
+            index=0, 
+            help="Choose a default style: Professional, Creative, or Basic."
+        )
 
 
     st.sidebar.markdown("### Status")
@@ -180,75 +273,110 @@ def main():
 
     # 2. Blueprint Editor (Editable JSON)
     if st.session_state.blueprint_json:
-        col1, col2 = st.columns([1, 1])
+        
+        st.subheader("Presentation Blueprint & Generation")
+        
+        # --- TAB STRUCTURE (NEW) ---
+        tab_preview, tab_edit, tab_download = st.tabs(["👁️ Slide Preview", "✏️ Edit Content", "💾 Download Files"])
 
-        with col1:
-            st.subheader("Presentation Blueprint (JSON Editor)")
+        # --- TAB 1: Slide Preview (NEW) ---
+        with tab_preview:
+            # Display preview using the currently selected style
+            render_slide_preview(st.session_state.blueprint_json, selected_style)
+
+        # --- TAB 2: Edit JSON ---
+        with tab_edit:
+            col1, col2 = st.columns([1, 1])
+
+            with col1:
+                st.subheader("JSON Editor")
+                
+                edited_json = st.text_area(
+                    "Edit the JSON structure below (MUST remain valid JSON)",
+                    st.session_state.blueprint_json,
+                    height=500
+                )
+
+                if edited_json != st.session_state.blueprint_json:
+                    st.session_state.blueprint_json = edited_json
+                    try:
+                        json.loads(edited_json)
+                        st.success("JSON updated locally. Check preview tab.")
+                    except json.JSONDecodeError:
+                        st.error("Invalid JSON format detected. Please correct the structure.")
+
+
+            with col2:
+                st.subheader("AI Modification")
+                
+                modification_instruction = st.text_input(
+                    "Instruct the AI to modify the structure (e.g., 'Combine slides 2 and 3')",
+                    key="mod_instruction"
+                )
+                if st.button("Apply AI Modification") and modification_instruction:
+                    run_blueprint_update(modification_instruction, api_key)
+        
+        # --- TAB 3: Download (UPDATED PPTX GENERATION) ---
+        with tab_download:
+            st.subheader("Generate Final Artifacts")
             
-            # The user can edit the JSON directly here
-            edited_json = st.text_area(
-                "Edit the JSON structure below (MUST remain valid JSON)",
-                st.session_state.blueprint_json,
-                height=500
-            )
-
-            if edited_json != st.session_state.blueprint_json:
-                st.session_state.blueprint_json = edited_json
-
-            # User instruction for modification
-            modification_instruction = st.text_input(
-                "Or, instruct the AI to modify the structure (e.g., 'Combine slides 2 and 3')",
-                key="mod_instruction"
-            )
-            if st.button("Apply AI Modification") and modification_instruction:
-                run_blueprint_update(modification_instruction, api_key)
-
-        with col2:
-            st.subheader("Final Output Generation")
-            
-            # 3. Final Outputs
             final_json = st.session_state.blueprint_json
             
-            # --- PPTX Generation ---
-            # NOTE: Calling the new function 'create_pptx_with_style' and passing the raw template data bytes
-            pptx_stream, pptx_error = create_pptx_with_style(
-                final_json, 
-                st.session_state.uploaded_template_data # <--- Passing the template bytes
-            )
-            
-            if pptx_stream:
-                st.download_button(
-                    label="Download PowerPoint (.pptx)",
-                    data=pptx_stream,
-                    file_name="gemini_presentation.pptx",
-                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                )
-            elif pptx_error:
-                 st.error(f"PPTX Error: {pptx_error}")
-            
-            # --- DOCX Generation (Unchanged) ---
-            docx_stream, docx_error = create_docx(final_json)
-            if docx_stream:
-                st.download_button(
-                    label="Download Word Document (.docx)",
-                    data=docx_stream,
-                    file_name="gemini_report.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-            elif docx_error:
-                 st.error(f"DOCX Error: {docx_error}")
+            col_pptx, col_doc, col_md = st.columns(3)
 
-            # --- Markdown Generation (Unchanged) ---
-            markdown_content, markdown_error = create_markdown_report(final_json)
-            if markdown_content:
-                st.download_button(
-                    label="Download Markdown Report (.md)",
-                    data=markdown_content.encode('utf-8'),
-                    file_name="gemini_report.md",
-                    mime="text/markdown"
-                )
-            elif markdown_error:
-                 st.error(f"Markdown Error: {markdown_error}")
+            with col_pptx:
+                st.markdown("#### PowerPoint")
+                st.markdown(f"**Style:** {'Custom Template' if st.session_state.uploaded_template_data else selected_style}")
+                
+                if st.button("Generate & Download PPTX"):
+                    with st.spinner(f"Generating PPTX with '{selected_style}' style or custom template..."):
+                        
+                        # Pass BOTH the selected style (theme_name) AND the template bytes (template_data)
+                        pptx_stream, pptx_error = create_pptx_with_style(
+                            final_json, 
+                            theme_name=selected_style, 
+                            template_data=st.session_state.uploaded_template_data 
+                        )
+                    
+                        if pptx_stream:
+                            st.download_button(
+                                label="Download PowerPoint (.pptx)",
+                                data=pptx_stream,
+                                file_name="gemini_presentation.pptx",
+                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                            )
+                            st.success("PPTX generated! Click Download button above.")
+                        elif pptx_error:
+                             st.error(f"PPTX Error: {pptx_error}")
+            
+            with col_doc:
+                st.markdown("#### Word Document")
+                # --- DOCX Generation (Unchanged) ---
+                docx_stream, docx_error = create_docx(final_json)
+                if docx_stream:
+                    st.download_button(
+                        label="Download Word Document (.docx)",
+                        data=docx_stream,
+                        file_name="gemini_report.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
+                elif docx_error:
+                     st.error(f"DOCX Error: {docx_error}")
+
+            with col_md:
+                st.markdown("#### Markdown Report")
+                # --- Markdown Generation (Unchanged) ---
+                markdown_content, markdown_error = create_markdown_report(final_json)
+                if markdown_content:
+                    st.download_button(
+                        label="Download Markdown Report (.md)",
+                        data=markdown_content.encode('utf-8'),
+                        file_name="gemini_report.md",
+                        mime="text/markdown"
+                    )
+                elif markdown_error:
+                     st.error(f"Markdown Error: {markdown_error}")
+
 
 if __name__ == "__main__":
     main()
