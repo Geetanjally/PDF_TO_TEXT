@@ -248,6 +248,39 @@ if 'blueprint_json' not in st.session_state:
 if 'uploaded_template_data' not in st.session_state:
     st.session_state.uploaded_template_data = None
 
+import streamlit as st
+import json
+# NOTE: Ensure all necessary constants and functions 
+# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, create_pptx_with_style,
+# create_docx, create_markdown_report, render_slide_preview, run_blueprint_update) 
+# are correctly imported or defined in your full application file.
+
+# --- 0. Streamlit Session State Initialization (Best Practice) ---
+# Initialize session state variables if they don't exist
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ''
+if 'blueprint_json' not in st.session_state:
+    st.session_state.blueprint_json = ''
+if 'uploaded_template_data' not in st.session_state:
+    st.session_state.uploaded_template_data = None
+
+
+import streamlit as st
+import json
+# NOTE: Ensure all necessary constants and functions 
+# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, create_pptx_with_style,
+# create_docx, create_markdown_report, render_slide_preview, run_blueprint_update) 
+# are correctly imported or defined in your full application file.
+
+# --- 0. Streamlit Session State Initialization (Best Practice) ---
+# Initialize session state variables if they don't exist
+if 'api_key' not in st.session_state:
+    st.session_state.api_key = ''
+if 'blueprint_json' not in st.session_state:
+    st.session_state.blueprint_json = ''
+if 'uploaded_template_data' not in st.session_state:
+    st.session_state.uploaded_template_data = None
+
 
 def main():
     # Set to wide layout for the custom centered columns trick
@@ -282,8 +315,24 @@ def main():
     with col_center:
         st.title("🚀 NoteScan: Multi-Format AI Suite")
         
-        # --- A. TEMPLATE & STYLE EXPANDER (Clean UI) ---
-        with st.expander("🎨 Presentation Setup (Template & Style)", expanded=False):
+        # --- A. OUTPUT SELECTION ---
+        output_type = st.radio(
+            "What type of output do you need?", 
+            ["Presentation (PPTX)", "Word Document (DOCX) & Markdown", "Both"], 
+            horizontal=True,
+            index=0 # Default to Presentation
+        )
+        st.markdown("---")
+        
+        # Define what kind of outputs are needed based on user choice
+        is_pptx_output = output_type in ["Presentation (PPTX)", "Both"]
+        is_doc_output = output_type in ["Word Document (DOCX) & Markdown", "Both"]
+        
+        selected_style = None # Initialize selected_style
+        
+        # --- B. CONDITIONAL PRESENTATION SETUP ---
+        if is_pptx_output:
+            st.markdown("### 🎨 Presentation Template & Style ")
             
             col_template, col_style = st.columns([1, 1])
 
@@ -319,10 +368,10 @@ def main():
                         index=0, 
                         help="Choose a default style: Professional, Creative, or Basic."
                     )
+            
+            st.markdown("---")
         
-        st.markdown("---")
-
-        # --- B. MAIN WORKFLOW ---
+        # --- C. MAIN WORKFLOW ---
         if not api_key:
             st.error("Please provide a Gemini API Key in the sidebar to proceed.")
             return
@@ -343,14 +392,29 @@ def main():
             
             st.subheader("Presentation Blueprint & Generation")
             
-            tab_preview, tab_edit, tab_download = st.tabs(["👁️ Slide Preview", "✏️ Edit Content", "💾 Download Files"])
-
-            # --- TAB 1: Slide Preview ---
-            with tab_preview:
-                render_slide_preview(st.session_state.blueprint_json, selected_style)
+            # Show tabs based on required output
+            tab_names = []
+            if is_pptx_output:
+                tab_names.extend(["👁️ Slide Preview", "✏️ Edit Content"])
+            else:
+                tab_names.append("✏️ Edit Content")
+                 
+            tab_names.append("💾 Download Files")
+            
+            # Dynamically create tabs
+            tabs = st.tabs(tab_names)
+            
+            # Map tabs for easier reference
+            tab_map = {name: tab for name, tab in zip(tab_names, tabs)}
+            
+            # --- TAB 1: Slide Preview (Only for PPTX output) ---
+            if "👁️ Slide Preview" in tab_map:
+                with tab_map["👁️ Slide Preview"]:
+                    render_slide_preview(st.session_state.blueprint_json, selected_style) 
 
             # --- TAB 2: Edit JSON / AI Modification ---
-            with tab_edit:
+            edit_tab = tab_map["✏️ Edit Content"] if "✏️ Edit Content" in tab_map else tabs[0] 
+            with edit_tab:
                 col1, col2 = st.columns([1, 1])
 
                 with col1:
@@ -381,21 +445,22 @@ def main():
                     if st.button("Apply AI Modification") and modification_instruction:
                         run_blueprint_update(modification_instruction, api_key)
             
-            # --- TAB 3: Download ---
-            with tab_download:
-                st.subheader("Generate Final Artifacts")
+            # --- TAB 3: Download (MODIFIED FOR WIDE, STACKED BUTTONS) ---
+            with tab_map["💾 Download Files"]:
+                
+                # 1. New Header
+                st.markdown("### ⬇️ Download Options")
                 
                 final_json = st.session_state.blueprint_json
                 
-                col_pptx, col_doc, col_md = st.columns(3)
-
-                with col_pptx:
-                    st.markdown("#### 1. PowerPoint (.pptx)")
+                # --- PowerPoint Download (Conditional) ---
+                if is_pptx_output:
+                    st.markdown("#### PowerPoint (.pptx)")
                     st.markdown(f"**Style:** {'Custom Template' if st.session_state.uploaded_template_data else selected_style}")
                     
-                    if st.button("Generate & Download PPTX"):
+                    # Use a wide button for generation
+                    if st.button("Generate & Download PPTX", use_container_width=True, key="generate_pptx"):
                         with st.spinner(f"Generating PPTX..."):
-                            
                             pptx_stream, pptx_error = create_pptx_with_style( 
                                 final_json, 
                                 theme_name=selected_style, 
@@ -403,41 +468,73 @@ def main():
                             )
                         
                             if pptx_stream:
+                                # Show the download button after generation (also wide)
                                 st.download_button(
-                                    label="Download PowerPoint",
+                                    label="Download PowerPoint File",
                                     data=pptx_stream,
                                     file_name="notescan_presentation.pptx",
-                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                    use_container_width=True
                                 )
                                 st.success("PPTX generated! Click Download button above.")
                             elif pptx_error:
                                 st.error(f"PPTX Error: {pptx_error}")
-                
-                with col_doc:
-                    st.markdown("#### 2. Word Document (.docx)")
+                    # st.markdown("---") # Separator between file types
+
+                # --- Word Document Download (Conditional) ---
+                if is_doc_output:
+                    st.markdown("#### Word Document (.docx)")
                     docx_stream, docx_error = create_docx(final_json) 
+                    
                     if docx_stream:
                         st.download_button(
-                            label="Download Word Document",
+                            label="Download Word Document (.docx)",
                             data=docx_stream,
                             file_name="notescan_report.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True
                         )
                     elif docx_error:
                         st.error(f"DOCX Error: {docx_error}")
+                    # st.markdown("---") # Separator between file types
 
-                with col_md:
-                    st.markdown("#### 3. Markdown Report (.md)")
+
+                    # --- Markdown Report Download (Conditional) ---
+                    st.markdown("#### Markdown Report (.md)")
                     markdown_content, markdown_error = create_markdown_report(final_json) 
+                    
                     if markdown_content:
                         st.download_button(
-                            label="Download Markdown Report",
+                            label="Download Markdown Report (.md)",
                             data=markdown_content.encode('utf-8'),
                             file_name="notescan_report.md",
-                            mime="text/markdown"
+                            mime="text/markdown",
+                            use_container_width=True
                         )
                     elif markdown_error:
                         st.error(f"Markdown Error: {markdown_error}")
+
+# ----------------------------------------------------
+# 3. FOOTER IMPLEMENTATION 
+# ----------------------------------------------------
+        st.markdown("---") # Optional separator line
+        st.markdown(
+            """
+            <style>
+            .footer {
+                padding-top: 20px; /* Reduced padding from 50px */
+                padding-bottom: 20px;
+                text-align: center;
+                font-size: 0.8rem;
+                color: #555555; /* Changed color to dark gray for visibility */
+            }
+            </style>
+            <div class="footer">
+                Developed by Geetanjally | Powered by Google Gemini & OpenCV OCR
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
 
 if __name__ == "__main__":
