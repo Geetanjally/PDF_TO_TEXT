@@ -312,20 +312,24 @@ def main():
     # Set to wide layout for the custom centered columns trick
     st.set_page_config(page_title="⚙️ NoteScan", layout="wide")
 
+    # Access the global variables defined at the top of the script
+    global API_KEY, MODEL_NAME 
+
     # --- 1. STATUS CHECK (SIDEBAR) ---
     st.sidebar.markdown("### Status")
-    
-    # Use the API_KEY variable loaded from os.getenv() at the top of the file
-    global API_KEY, MODEL_NAME
 
+    # Check the global variable API_KEY
     if API_KEY:
         st.sidebar.success("API Key Loaded Securely.")
         st.sidebar.info(f"Model: {MODEL_NAME}")
     else:
-        # This message will trigger the st.stop() check that should be at the top level
+        # This warning appears if the key wasn't loaded from the environment
         st.sidebar.error("API Key Missing.")
         st.warning("Please ensure the GEMINI_API_KEY is set in your environment or Streamlit Secrets.")
         
+    st.sidebar.markdown("---")
+    
+    # ... (rest of your main() function code continues here) ...    
     st.sidebar.markdown("---")
     
     # ... (rest of your main() function code continues here) ...
@@ -395,7 +399,7 @@ def main():
             st.markdown("---")
         
         # --- C. MAIN WORKFLOW ---
-        if not api_key:
+        if not API_KEY:
             st.error("Please provide a Gemini API Key in the sidebar to proceed.")
             return
 
@@ -406,7 +410,7 @@ def main():
         )
 
         if uploaded_file and st.button("Process Document & Generate Initial Blueprint"):
-            run_extraction_and_cleaning(uploaded_file, api_key)
+            run_extraction_and_cleaning(uploaded_file, API_KEY)
             
         st.markdown("---")
 
