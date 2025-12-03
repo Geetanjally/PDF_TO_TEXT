@@ -329,9 +329,6 @@ def main():
         
     st.sidebar.markdown("---")
     
-    # ... (rest of your main() function code continues here) ...    
-    st.sidebar.markdown("---")
-    
     # ... (rest of your main() function code continues here) ...
 
 
@@ -412,7 +409,7 @@ def main():
         if uploaded_file and st.button("Process Document & Generate Initial Blueprint"):
             run_extraction_and_cleaning(uploaded_file, API_KEY)
             
-        st.markdown("---")
+        # st.markdown("---")
 
         # 2. Blueprint Editor (Tabs)
         if st.session_state.blueprint_json:
@@ -470,7 +467,7 @@ def main():
                         key="mod_instruction"
                     )
                     if st.button("Apply AI Modification") and modification_instruction:
-                        run_blueprint_update(modification_instruction, api_key)
+                        run_blueprint_update(modification_instruction, API_KEY)
             
             # --- TAB 3: Download (MODIFIED FOR WIDE, STACKED BUTTONS) ---
             with tab_map["💾 Download Files"]:
