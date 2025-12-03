@@ -204,8 +204,8 @@ def run_blueprint_update(user_instruction, api_key):
 # MAIN APPLICATION FLOW
 # --------------------------------
 def main():
-    st.set_page_config(page_title="Gemini PPT Generator", layout="wide")
-    st.title("💡 AI-Powered Presentation Generator")
+    st.set_page_config(page_title="⚙️ NoteScan", layout="wide")
+    st.title("🚀 NoteScan: Multi-Format AI Suite")
 
     # --- Sidebar for Configuration ---
     st.sidebar.header("Configuration")

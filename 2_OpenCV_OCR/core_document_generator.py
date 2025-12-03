@@ -117,38 +117,95 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
     """
     Processes an uploaded file (PDF/Image) to extract raw text, 
     then uses Gemini to clean and structure it.
-    
-    Args:
-        uploaded_file: The uploaded file object (e.g., Streamlit UploadedFile).
-        api_key (str): The Gemini API key.
     """
     raw_text = None
     
     if uploaded_file.type == "application/pdf":
         pdf_bytes = uploaded_file.getvalue()
         
-        # --- Using fitz (PyMuPDF) to convert PDF page to image bytes ---
         if fitz:
             try:
                 doc = fitz.open(stream=pdf_bytes)
-                page = doc.load_page(0) # Load first page
-                pix = page.get_pixmap(dpi=300)
                 
-                # Convert pixmap to PNG bytes
+                # **********************************************
+                # CASE 1: TEST ONLY - Single Page Processing
+                # **********************************************
+                # Uncomment the block below (remove the triple quotes) 
+                # to process ONLY the first page for fast, low-token testing.
+                # **********************************************
+                
+                page_num = 0 # Only process the first page (index 0)
+                page = doc.load_page(page_num)
+                
+                # Convert page to a high-resolution PNG image
+                pix = page.get_pixmap(dpi=300)
                 img_bytes = pix.tobytes("png")
+                
+                # Send image to Gemini Vision for comprehensive text extraction
+                page_text, error = extract_text_gemini(img_bytes, api_key)
+                
+                if error:
+                    page_text = f"[ERROR: Could not extract page 1]. {error}"
+                    
+                raw_text = f"\n\n--- PAGE 1 ---\n\n{page_text}"
+                print(f"📄 Testing mode: Only Page 1 extracted.")
+                
+                # Ensure you comment out the full scanning block (CASE 2) if using this!
+                
+                
+                # **********************************************
+                # CASE 2: FINAL SUBMISSION - Whole PDF with Optimization
+                # **********************************************
+                # Use this block for the final submission. It includes the token-saving logic.
+                # **********************************************
+                '''
+                raw_text_parts = []
+                for page_num in range(doc.page_count):
+                    page = doc.load_page(page_num)
+                    page_text = ""
+                    
+                    # 1. Try to extract digital text first (LOW COST / FAST)
+                    raw_pdf_text = page.get_text()
+                    meaningful_text_length = len(raw_pdf_text.strip())
+                    
+                    # Optimization: If digital text is substantial, use it to save API cost.
+                    if meaningful_text_length > 250:
+                        page_text = raw_pdf_text.strip()
+                        print(f"📄 Page {page_num + 1}: Digital text found, skipping Gemini OCR.")
+                    
+                    # 2. Fallback: If digital text is sparse or missing, use Gemini Vision (HIGH COST)
+                    else:
+                        print(f"🖼️ Page {page_num + 1}: Digital text sparse ({meaningful_text_length} chars). Falling back to Gemini Vision OCR...")
+                        
+                        # Convert page to high-resolution PNG image
+                        pix = page.get_pixmap(dpi=300)
+                        img_bytes = pix.tobytes("png")
+                        
+                        # Send image to Gemini Vision for comprehensive text extraction
+                        page_text, error = extract_text_gemini(img_bytes, api_key)
+                        
+                        if error:
+                            print(f"Warning: Failed to process page {page_num+1}. Error: {error}")
+                            page_text = f"[ERROR: Could not extract page {page_num+1}]" 
+                        
+                    raw_text_parts.append(f"\n\n--- PAGE {page_num + 1} ---\n\n{page_text}")
+                    
+                raw_text = "".join(raw_text_parts) # Combine all page text
+                '''
+                
+                # Ensure you comment out the single-page block (CASE 1) if using this!
+                
                 doc.close()
                 
-                # Now pass the image bytes to Gemini Vision for extraction
-                raw_text, error = extract_text_gemini(img_bytes, api_key)
-                if error:
-                    return None, f"Extraction Error (PDF): {error}"
+                if not raw_text.strip():
+                     return None, "PDF processed successfully but returned empty content."
                 
             except Exception as e:
                 return None, f"PDF Processing Error: {e}"
         else:
             return None, "PyMuPDF (fitz) library is missing, cannot process PDF."
             
-    else: # Image file
+    else: # Image file (standard image processing)
         img_bytes = uploaded_file.getvalue()
         raw_text, error = extract_text_gemini(img_bytes, api_key)
         if error:
@@ -169,6 +226,8 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
         "Use simple bullet points in the 'content' lists. Do not use Markdown formatting in the lists."
         f"\n\nRAW TEXT:\n---\n{raw_text}\n---"
     )
+    
+    # ... (rest of the function for API calls remains the same)
     
     try:
         client = _get_genai_client(api_key)
@@ -204,8 +263,6 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
         
     except Exception as e:
         return None, f"Gemini API call failed during structuring/cleaning: {e}"
-
-
 # --------------------------------
 # 3. STRUCTURE MANIPULATION FUNCTIONS
 # --------------------------------

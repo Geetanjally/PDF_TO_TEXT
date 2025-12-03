@@ -16,7 +16,7 @@ THEMES = {
         "title_font": "Arial",
         "title_color": (0, 51, 102),  # Navy Blue
         "body_font": "Calibri",
-        "body_color": (89, 89, 89),   # Dark Gray
+        "body_color": (89, 89, 89),  # Dark Gray
         "accent_color": (0, 51, 102),
         "design_element": True,
         "design_color": (0, 51, 102), # Navy Bar
@@ -28,7 +28,7 @@ THEMES = {
         "title_font": "Georgia",
         "title_color": (230, 81, 0),  # Deep Orange
         "body_font": "Gill Sans MT",
-        "body_color": (40, 40, 40),   # Almost Black
+        "body_color": (40, 40, 40),  # Almost Black
         "accent_color": (75, 0, 130), # Indigo
         "design_element": True,
         "design_color": (230, 81, 0), # Orange Accent
@@ -38,9 +38,9 @@ THEMES = {
     },
     "Basic": {
         "title_font": "Calibri Light",
-        "title_color": (0, 0, 0),     # Black
+        "title_color": (0, 0, 0),    # Black
         "body_font": "Calibri",
-        "body_color": (60, 60, 60),   # Gray
+        "body_color": (60, 60, 60),  # Gray
         "accent_color": (0, 0, 0),
         "design_element": False,      # Clean, no shapes
         "design_color": (255, 255, 255),
@@ -130,12 +130,14 @@ def _add_placeholder_chart_slide(prs, title, chart_data_string, theme_cfg):
 
     # Chart Data Parsing and Generation
     try:
-        # Expected format: [CHART:<Chart Type Title>, <Series Name>, <Category 1>:<Value 1>, ...]
+        # Expected format: <Chart Title>, <Series Name>, <Category 1>:<Value 1>, ...
         parts = chart_data_string.split(',')
         if len(parts) < 3:
-            raise ValueError("Chart string must contain a series name and at least one data point.")
+            raise ValueError("Chart string must contain a chart title, a series name, and at least one data point.")
             
-        chart_title = parts[1].strip()
+        # FIX: Correctly map parts to Chart Title and Series Name
+        chart_main_title = parts[0].strip() # Use the first element as the chart's main title
+        series_name = parts[1].strip()      # Use the second element as the series name
         
         categories = []
         series_data = []
@@ -152,7 +154,7 @@ def _add_placeholder_chart_slide(prs, title, chart_data_string, theme_cfg):
 
         data = ChartData()
         data.categories = categories
-        data.add_series(chart_title, series_data)
+        data.add_series(series_name, series_data) # Use series_name here
 
         # Use Clustered Column Chart
         chart_type = XL_CHART_TYPE.COLUMN_CLUSTERED
@@ -164,11 +166,12 @@ def _add_placeholder_chart_slide(prs, title, chart_data_string, theme_cfg):
         
         # Set the chart title to the one provided in the data
         chart.has_title = True
-        chart.chart_title.text_frame.text = chart_title
+        chart.chart_title.text_frame.text = chart_main_title # Use chart_main_title here
         
         return True
     except Exception as e:
         # Return False to indicate chart generation failure
+        print(f"Chart generation failed: {e}")
         return False
 
 def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=None):
@@ -217,7 +220,7 @@ def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=
         if chart_placeholder:
             # We call the helper function to draw the chart and themed title manually
             # The data is parsed from the string: [CHART:Chart Title, Series Name, Categ1:Value1, ...]
-            # Remove [CHART: and ]
+            # Remove [CHART: and ] to get the raw data string
             _add_placeholder_chart_slide(prs, slide_title, chart_placeholder[7:-1], theme_cfg)
             continue 
 
@@ -306,12 +309,12 @@ def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=
                 # Fallback to a plain textbox if placeholder insertion fails
                 if remaining_content:
                     # Fallback: If no standard content placeholder is found, dump the content into a new textbox
-                    left = top = Inches(1)
+                    left = Inches(1)
+                    top = Inches(1.5)
                     width = Inches(8.5)
                     height = Inches(5.5)
                     
-                    # Position the fallback textbox away from the assumed title position
-                    txBox = slide.shapes.add_textbox(left, top + Inches(1.5), width, height) 
+                    txBox = slide.shapes.add_textbox(left, top, width, height) 
                     tf = txBox.text_frame
                     tf.clear()
                     tf.vertical_anchor = MSO_ANCHOR.TOP
