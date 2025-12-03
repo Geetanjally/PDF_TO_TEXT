@@ -21,8 +21,34 @@ from pptx_designer import create_pptx_with_style # <--- NEW: Using the enhanced 
 # CONFIGURATION
 # --------------------------------
 # Ensure your API key is set as an environment variable (GEMINI_API_KEY) or enter it below
-API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyAzHf66I6a1uHUbC1-PnFCK6KyBUZTOJYI") 
+import os
+import json
+import streamlit as st
+from dotenv import load_dotenv # Import the tool to load .env file
+# ... (rest of the imports) ...
+
+
+# --------------------------------
+# CONFIGURATION & SECRET LOADING
+# --------------------------------
+
+# 1. Load variables from .env if running locally. 
+# This runs silently on Streamlit Cloud (where .env is missing).
+load_dotenv() 
+
+# 2. Securely fetch the API key from the environment.
+# This works for both local (.env) and cloud (Streamlit Secrets).
+# REMOVE THE HARDCODED FALLBACK KEY ("AIzaSy...")
+API_KEY = os.getenv("GEMINI_API_KEY") 
+
 MODEL_NAME = "models/gemini-2.5-flash"
+# --------------------------------
+
+# --- Add this crucial check to stop the app if the key is missing ---
+if API_KEY is None:
+    st.error("🔑 **Error:** Gemini API Key not found.")
+    st.info("Please set the `GEMINI_API_KEY` environment variable in a local `.env` file or in Streamlit Cloud Secrets.")
+    st.stop()
 
 # --- DESIGN SETTINGS ---
 TEMPLATE_DIR = "templates"

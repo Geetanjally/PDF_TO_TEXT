@@ -1,0 +1,15 @@
+# .gitignore
+
+# Ignore the virtual environment folder
+venv/
+
+# Ignore the local secrets file
+.env
+
+# Ignore system files and compiled code
+__pycache__/
+*.pyc
+
+# Ignore output files
+*.docx
+*.pptx

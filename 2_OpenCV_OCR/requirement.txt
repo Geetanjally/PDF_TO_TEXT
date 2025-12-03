@@ -1,6 +1,0 @@
-streamlit
-google-genai
-Pillow
-python-pptx
-python-docx
-PyMuPDF
