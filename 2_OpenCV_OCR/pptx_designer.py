@@ -176,38 +176,44 @@ def _add_placeholder_chart_slide(prs, title, chart_data_string, theme_cfg):
 
 def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=None):
     """
-    Generates a PPTX presentation from a structured JSON blueprint, applying custom 
-    theming, design elements, and supporting chart generation.
-
-    If `template_data` (bytes) is provided, it uses the custom template and disables 
-    all default theme styling (fonts, colors, design shapes).
+    Generates a PPTX presentation from a structured JSON blueprint.
     
-    Parameters:
-    - slides_data (str): JSON string of the presentation blueprint (list of slides).
-    - theme_name (str): The name of the default theme to apply ("Professional", "Creative", "Basic").
-    - template_data (bytes, optional): Raw bytes of an uploaded custom PPTX template.
-    
-    Returns:
-    - tuple: (BytesIO stream of PPTX file, error_message or None)
+    ... (Docstring content truncated for brevity)
     """
     try:
         data = json.loads(slides_data)
     except:
         return None, "Failed to parse JSON blueprint."
 
-    # --- 1. Load Presentation Object and Theme Configuration ---
+    # --- 1. Load Presentation Object and Theme Configuration (UPDATED) ---
     if template_data:
         # Use the custom template provided by the user
         template_stream = io.BytesIO(template_data)
         prs = Presentation(template_stream)
+        
+        # FIX 1: Determine the number of slides already present (should be 1 for a single-slide template)
+        initial_slide_count = len(prs.slides)
+        
+        # FIX 2: Determine the usable layout from the template.
+        # We assume the layout of the first existing slide is the layout to use for content.
+        try:
+            if initial_slide_count > 0:
+                template_layout = prs.slides[0].slide_layout
+            else:
+                # Fallback if somehow the template was empty but provided
+                template_layout = prs.slide_layouts[1] 
+        except IndexError:
+            template_layout = prs.slide_layouts[0] # Safe fallback (Title Slide layout)
+
         # Custom templates ignore the default style settings. Set config for no custom design.
         theme_cfg = {"title_font": None, "body_font": None, "design_element": False} 
     else:
         # Use the default blank presentation and apply theme styling
         prs = Presentation() 
+        initial_slide_count = 0 # No pre-existing slides
         theme_cfg = THEMES.get(theme_name, THEMES[DEFAULT_THEME])
 
-    # --- 2. Iterate and Build Slides ---
+    # --- 2. Iterate and Build Slides (UPDATED LOOP LOGIC) ---
     for i, slide_data in enumerate(data):
         slide_title = slide_data.get('title', f"Slide {i+1}")
         slide_content = slide_data.get('content', [])
@@ -218,30 +224,46 @@ def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=
 
         # --- A. Generate Chart Slide ---
         if chart_placeholder:
-            # We call the helper function to draw the chart and themed title manually
-            # The data is parsed from the string: [CHART:Chart Title, Series Name, Categ1:Value1, ...]
-            # Remove [CHART: and ] to get the raw data string
+            # Chart generation logic remains the same (assuming _add_placeholder_chart_slide uses prs.slides.add_slide)
             _add_placeholder_chart_slide(prs, slide_title, chart_placeholder[7:-1], theme_cfg)
             continue 
 
-        # --- B. Generate Standard Content Slide ---
+        # --- B. Generate Standard Content Slide (NEW LOGIC) ---
         
-        # Use layout 1 (Title and Content) or layout 5 (Title only) as a reliable base
-        layout_index = 1 if remaining_content else 5 # Title and Content (1) or Title Only (5)
+        slide = None # Initialize slide object
         
-        try:
-            layout = prs.slide_layouts[layout_index] 
-        except IndexError:
-            layout = prs.slide_layouts[0] # Fallback to Title Slide (Index 0 is always safe)
+        if template_data:
+            # FIX: If it's the first blueprint slide AND the template had a slide (initial_slide_count > 0),
+            # use the existing slide (prs.slides[0]) instead of adding a new one.
+            if i == 0 and initial_slide_count > 0:
+                slide = prs.slides[0] 
+                layout = template_layout
+            else:
+                # For all subsequent slides, ADD a new slide using the derived layout.
+                layout = template_layout 
+                slide = prs.slides.add_slide(layout)
+            
+            # Since we used an existing slide, we must ensure it's cleared if needed.
+            # We don't need to clear the content here, as the later logic will overwrite it.
+            
+        else:
+            # Original logic for default blank presentation: add a new slide
+            layout_index = 1 if remaining_content else 5 
+            try:
+                layout = prs.slide_layouts[layout_index] 
+            except IndexError:
+                layout = prs.slide_layouts[0] # Fallback to Title Slide (Index 0 is always safe)
 
-        slide = prs.slides.add_slide(layout)
-        
+            slide = prs.slides.add_slide(layout)
+
         # Apply Design Element ONLY if no template was provided
         if not template_data:
             _add_design_element(slide, theme_cfg)
         
         # 1. Title Styling
         try:
+            # Clear existing title text if we are reusing the slide
+            slide.shapes.title.text = "" 
             slide.shapes.title.text = slide_title
             # Apply Theme Title Font/Color ONLY if no template was provided
             if not template_data:
@@ -255,27 +277,25 @@ def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=
             pass
             
         # 2. Body Content (Only if layout index 1 was used and there is content)
-        if layout_index == 1 and remaining_content:
+        if (template_data or layout_index == 1) and remaining_content:
             try:
-                # --- FIX: Robustly find the content placeholder by its MSO idx (2) ---
+                # ... (Body content finding and clearing logic remains the same) ...
+                
                 body_placeholder = None
                 for shape in slide.shapes:
-                    # Check if it's a placeholder and its MSO index is 2 (Body Content)
                     if shape.is_placeholder and shape.placeholder_format.idx == BODY_PLACEHOLDER_IDX:
                         body_placeholder = shape
                         break
 
                 if not body_placeholder:
-                    # Fallback to using the second item in the list if the robust search failed
                     if len(slide.shapes.placeholders) > 1:
-                        # Attempt the most common index for Body content (Index 1)
                         body_placeholder = slide.shapes.placeholders[1]
                     else:
                         raise ValueError("No suitable body placeholder found.")
 
                 # Proceed with content insertion
                 body = body_placeholder.text_frame
-                body.clear()
+                body.clear() # IMPORTANT: Clears any default text from the template slide
                 
                 for point in remaining_content:
                     processed_point = point.strip()
@@ -305,10 +325,11 @@ def create_pptx_with_style(slides_data, theme_name=DEFAULT_THEME, template_data=
                     p.level = level
 
             except Exception as e:
+                # ... (Fallback content logic remains the same) ...
                 print(f"Warning: Could not populate content for slide {i+1} due to text frame issue. Error: {e}")
-                # Fallback to a plain textbox if placeholder insertion fails
                 if remaining_content:
                     # Fallback: If no standard content placeholder is found, dump the content into a new textbox
+                    # ... (Fallback text box creation and population logic remains the same) ...
                     left = Inches(1)
                     top = Inches(1.5)
                     width = Inches(8.5)
