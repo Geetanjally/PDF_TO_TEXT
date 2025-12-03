@@ -311,27 +311,24 @@ if 'uploaded_template_data' not in st.session_state:
 def main():
     # Set to wide layout for the custom centered columns trick
     st.set_page_config(page_title="⚙️ NoteScan", layout="wide")
-    
-    
-    # --- 1. HIDDEN CONFIGURATION (SIDEBAR) ---
-    # API Key Input (Hidden from the main view)
-    api_key_input = st.sidebar.text_input(
-        "🔑 Enter Gemini API Key", 
-        type="password", 
-        value=st.session_state.api_key
-    )
-    # Update session state
-    st.session_state.api_key = api_key_input
-    
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### Status")
-    api_key = st.session_state.api_key
 
-    if api_key:
-        st.sidebar.success("API Key Loaded.")
+    # --- 1. STATUS CHECK (SIDEBAR) ---
+    st.sidebar.markdown("### Status")
+    
+    # Use the API_KEY variable loaded from os.getenv() at the top of the file
+    global API_KEY, MODEL_NAME
+
+    if API_KEY:
+        st.sidebar.success("API Key Loaded Securely.")
         st.sidebar.info(f"Model: {MODEL_NAME}")
     else:
-        st.sidebar.warning("API Key needed to run the AI.")
+        # This message will trigger the st.stop() check that should be at the top level
+        st.sidebar.error("API Key Missing.")
+        st.warning("Please ensure the GEMINI_API_KEY is set in your environment or Streamlit Secrets.")
+        
+    st.sidebar.markdown("---")
+    
+    # ... (rest of your main() function code continues here) ...
 
 
     # --- 2. MAIN PAGE CONTENT (Custom Centered Layout) ---
