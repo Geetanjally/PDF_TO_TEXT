@@ -8,7 +8,7 @@
 
 Try the app right now:
 
-➡️ **[NoteScan Live Demo](https://pdftotext-7etecv3crigzgo5cwnbvvn.streamlit.app/)** ⬅️
+➡️ **[NoteScan Live Demo](https://pdftotext-g2ocbw84xqegrcxlmuagxp.streamlit.app/)** ⬅️
 
 
 ## ✨ Core Features
