@@ -5,7 +5,7 @@ from pptx import Presentation
 # -----------------------------
 # 1. Gemini CONFIG
 # -----------------------------
-genai.configure(api_key="AIzaSyAzHf66I6a1uHUbC1-PnFCK6KyBUZTOJYI")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL_NAME = "models/gemini-2.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
