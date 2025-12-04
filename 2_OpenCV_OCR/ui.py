@@ -2,73 +2,42 @@ import os
 import json
 import streamlit as st
 import io # Needed for st.download_button
+from dotenv import load_dotenv # Used for loading environment variables locally
 
-# --- Import ALL logic from the consolidated Canvas file ---
-# This file must exist in the same directory as ui.py
+# --- Import ALL logic from the consolidated Canvas files ---
+# NOTE: These files (core_document_generator.py, pptx_designer.py) 
+# are assumed to exist and contain the imported functions.
 from core_document_generator import (
     process_document_to_cleaned_text,
     generate_initial_structure,
     update_structure,
     create_docx,
     create_markdown_report
-    # NOTE: refine_document_text_for_tables is excluded if not in core_document_generator.py
 )
-
-# --- NEW IMPORT for the advanced PPTX generation ---
-from pptx_designer import create_pptx_with_style # <--- NEW: Using the enhanced function
-
-# --------------------------------
-# CONFIGURATION
-# --------------------------------
-# Ensure your API key is set as an environment variable (GEMINI_API_KEY) or enter it below
-import os
-import json
-import streamlit as st
-from dotenv import load_dotenv # Import the tool to load .env file
-# ... (rest of the imports) ...
-
+from pptx_designer import create_pptx_with_style
 
 # --------------------------------
 # CONFIGURATION & SECRET LOADING
 # --------------------------------
 
 # 1. Load variables from .env if running locally. 
-# This runs silently on Streamlit Cloud (where .env is missing).
 load_dotenv() 
 
 # 2. Securely fetch the API key from the environment.
-# This works for both local (.env) and cloud (Streamlit Secrets).
-# REMOVE THE HARDCODED FALLBACK KEY ("AIzaSy...")
 API_KEY = os.getenv("GEMINI_API_KEY") 
-
 MODEL_NAME = "models/gemini-2.5-flash"
-# --------------------------------
-
-# --- Add this crucial check to stop the app if the key is missing ---
-if API_KEY is None:
-    st.error("🔑 **Error:** Gemini API Key not found.")
-    st.info("Please set the `GEMINI_API_KEY` environment variable in a local `.env` file or in Streamlit Cloud Secrets.")
-    st.stop()
 
 # --- DESIGN SETTINGS ---
-TEMPLATE_DIR = "templates"
-DYNAMIC_TEMPLATE_OPTIONS = {} # Holds the loaded options
-
-# NEW: Presentation Styles (The three default settings)
 PPT_STYLES = ["Professional", "Creative", "Basic"] 
 
-# -------------------------------
-
-# --- SESSION STATE INITIALIZATION ---
+# --------------------------------
+# SESSION STATE INITIALIZATION
+# --------------------------------
 # Initialize session state variables if they don't exist
-if 'template_file' not in st.session_state:
-    st.session_state.template_file = None
 if 'raw_text' not in st.session_state:
     st.session_state.raw_text = None
 if 'blueprint_json' not in st.session_state:
     st.session_state.blueprint_json = None
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = API_KEY
 if 'system_instruction' not in st.session_state:
     st.session_state.system_instruction = (
         "You are an expert presentation structure designer. "
@@ -80,13 +49,12 @@ if 'uploaded_template_data' not in st.session_state:
 
 
 # --------------------------------
-# HELPER FUNCTION FOR PREVIEW (NEW)
+# HELPER FUNCTION FOR PREVIEW
 # --------------------------------
 
 def render_slide_preview(json_data, style_name="Professional"):
     """
     Renders a visual preview of the slides in Streamlit, simulating the chosen style's theme.
-    This simulates the "different tab" version of the PPT before downloading.
     """
     try:
         data = json.loads(json_data)
@@ -154,12 +122,7 @@ def render_slide_preview(json_data, style_name="Professional"):
 def run_extraction_and_cleaning(uploaded_file, api_key):
     """Callback to run the PDF extraction and Gemini cleaning pipeline."""
     with st.spinner("Step 1: Extracting text from PDF (including OCR fallback if needed)..."):
-        # Assuming process_document_to_cleaned_text handles the file bytes and type correctly
-        # file_bytes = uploaded_file.read()
-        # NOTE: The provided core_document_generator snippet doesn't show refine_document_text_for_tables
-        # We proceed assuming a simplified flow.
         cleaned_text, error = process_document_to_cleaned_text(uploaded_file, api_key)
-
 
     if error:
         st.error(f"Extraction/Cleaning Error: {error}")
@@ -229,122 +192,41 @@ def run_blueprint_update(user_instruction, api_key):
 # --------------------------------
 # MAIN APPLICATION FLOW
 # --------------------------------
-import streamlit as st
-import json
-# NOTE: Ensure all necessary constants and functions 
-# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, etc.) 
-# are correctly imported or defined in your full application file.
-
-# --- 0. Streamlit Session State Initialization (Best Practice) ---
-# Initialize session state variables if they don't exist
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'blueprint_json' not in st.session_state:
-    st.session_state.blueprint_json = ''
-if 'uploaded_template_data' not in st.session_state:
-    st.session_state.uploaded_template_data = None
-
-
-import streamlit as st
-import json
-# NOTE: Ensure all necessary constants and functions are correctly imported
-
-# --- 0. Streamlit Session State Initialization (Best Practice) ---
-# Initialize session state variables if they don't exist
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'blueprint_json' not in st.session_state:
-    st.session_state.blueprint_json = ''
-if 'uploaded_template_data' not in st.session_state:
-    st.session_state.uploaded_template_data = None
-
-
-import streamlit as st
-import json
-# NOTE: Ensure all necessary constants and functions 
-# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, etc.) 
-# are correctly imported or defined in your full application file.
-
-# --- 0. Streamlit Session State Initialization (Best Practice) ---
-# Initialize session state variables if they don't exist
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'blueprint_json' not in st.session_state:
-    st.session_state.blueprint_json = ''
-if 'uploaded_template_data' not in st.session_state:
-    st.session_state.uploaded_template_data = None
-
-import streamlit as st
-import json
-# NOTE: Ensure all necessary constants and functions 
-# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, create_pptx_with_style,
-# create_docx, create_markdown_report, render_slide_preview, run_blueprint_update) 
-# are correctly imported or defined in your full application file.
-
-# --- 0. Streamlit Session State Initialization (Best Practice) ---
-# Initialize session state variables if they don't exist
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'blueprint_json' not in st.session_state:
-    st.session_state.blueprint_json = ''
-if 'uploaded_template_data' not in st.session_state:
-    st.session_state.uploaded_template_data = None
-
-
-import streamlit as st
-import json
-# NOTE: Ensure all necessary constants and functions 
-# (PPT_STYLES, MODEL_NAME, run_extraction_and_cleaning, create_pptx_with_style,
-# create_docx, create_markdown_report, render_slide_preview, run_blueprint_update) 
-# are correctly imported or defined in your full application file.
-
-# --- 0. Streamlit Session State Initialization (Best Practice) ---
-# Initialize session state variables if they don't exist
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ''
-if 'blueprint_json' not in st.session_state:
-    st.session_state.blueprint_json = ''
-if 'uploaded_template_data' not in st.session_state:
-    st.session_state.uploaded_template_data = None
-
 
 def main():
-    # Set to wide layout for the custom centered columns trick
+    # Set to wide layout for better use of space
     st.set_page_config(page_title="⚙️ NoteScan", layout="wide")
 
     # Access the global variables defined at the top of the script
     global API_KEY, MODEL_NAME 
 
-    # --- 1. STATUS CHECK (SIDEBAR) ---
-    st.sidebar.markdown("### Status")
+    # --- API KEY CHECK (Silent Stop) ---
+    if not API_KEY:
+        st.error("🔑 **Critical Error:** Gemini API Key is missing.")
+        st.info("Please set the `GEMINI_API_KEY` environment variable in a local `.env` file or in Streamlit Cloud Secrets.")
+        st.stop()
+    # --- END CRITICAL FAILURE BLOCK ---
 
-    # Check the global variable API_KEY
-    if API_KEY:
-        st.sidebar.success("API Key Loaded Securely.")
-        st.sidebar.info(f"Model: {MODEL_NAME}")
-    else:
-        # This warning appears if the key wasn't loaded from the environment
-        st.sidebar.error("API Key Missing.")
-        st.warning("Please ensure the GEMINI_API_KEY is set in your environment or Streamlit Secrets.")
-        
-    st.sidebar.markdown("---")
-    
-    # ... (rest of your main() function code continues here) ...
-
-
-    # --- 2. MAIN PAGE CONTENT (Custom Centered Layout) ---
-    # Create side padding columns and a center column (1:6:1 ratio)
+    # --- MAIN PAGE CONTENT (Custom Centered Layout) ---
+    # NOTE: Adjusted ratio for slightly more padding, [1, 5, 1] works well too.
     col_left, col_center, col_right = st.columns([1, 6, 1]) 
     
     with col_center:
-        st.title("🚀 NoteScan: Multi-Format AI Suite")
+        st.markdown(
+            """
+            <h1 style='text-align: center;'>🚀 NoteScan: Multi-Format AI Suite</h1>
+            """, 
+            unsafe_allow_html=True
+        )
         
-        # --- A. OUTPUT SELECTION ---
-        output_type = st.radio(
-            "What type of output do you need?", 
+        # --- A. OUTPUT SELECTION (Always Visible) ---
+        st.markdown("### **What Type Of Document Do You Want To Create?**")
+        output_type = st.radio( 
+            "Placeholder",
             ["Presentation (PPTX)", "Word Document (DOCX) & Markdown", "Both"], 
             horizontal=True,
-            index=0 # Default to Presentation
+            index=0, # Default to Presentation
+            label_visibility="collapsed"
         )
         st.markdown("---")
         
@@ -354,102 +236,115 @@ def main():
         
         selected_style = None # Initialize selected_style
         
-        # --- B. CONDITIONAL PRESENTATION SETUP ---
-        if is_pptx_output:
-            st.markdown("### 🎨 Presentation Template & Style ")
-            
-            col_template, col_style = st.columns([1, 1])
-
-            # 1. PPTX Template Upload
-            with col_template:
-                uploaded_template = st.file_uploader(
-                    "Optional: Upload PPTX Template (Limit 200MB)",
-                    type="pptx",
-                    key="pptx_template_uploader"
-                )
-                if uploaded_template:
-                    st.session_state.uploaded_template_data = uploaded_template.read()
-                    st.success(f"Template '{uploaded_template.name}' loaded.")
-                else:
-                    st.session_state.uploaded_template_data = None
-                    st.info("Using default blank PowerPoint template.")
-
-            # 2. Presentation Style Selection
-            with col_style:
-                if st.session_state.uploaded_template_data:
-                    selected_style = "Custom Template (Styles Ignored)"
-                    st.selectbox(
-                        "Presentation Style:", 
-                        [selected_style], 
-                        disabled=True,
-                        help="Custom template overrides default styles."
-                    )
-                    st.warning("Custom template overrides default styles.")
-                else:
-                    selected_style = st.selectbox(
-                        "Presentation Style:", 
-                        PPT_STYLES, 
-                        index=0, 
-                        help="Choose a default style: Professional, Creative, or Basic."
-                    )
-            
-            st.markdown("---")
+        # ------------------------------------------------------------------
+        # --- STEP 1: FILE UPLOAD (Always Visible) ---
+        # ------------------------------------------------------------------
         
-        # --- C. MAIN WORKFLOW ---
-        if not API_KEY:
-            st.error("Please provide a Gemini API Key in the sidebar to proceed.")
-            return
+        # 1. Use st.markdown to display the large, bold label
+        st.markdown("### **Upload a PDF Document (Handwritten or Printed)**")
 
-        # 1. File Upload
+        # 2. Use st.file_uploader with the label completely hidden
         uploaded_file = st.file_uploader(
-            "Upload a PDF Document (handwritten or printed)", 
-            type="pdf"
+            "Placeholder", # This string is required by the function, but won't be seen.
+            type="pdf",
+            label_visibility="collapsed" # <-- THIS IS THE KEY FIX
         )
+        # st.markdown("---") # Separator after the main input
 
-        if uploaded_file and st.button("Process Document & Generate Initial Blueprint"):
-            run_extraction_and_cleaning(uploaded_file, API_KEY)
+        # ------------------------------------------------------------------
+        # --- STEP 2: OPTIONS & PROCESS (Conditional on File) ---
+        # ------------------------------------------------------------------
+        if uploaded_file:
+            st.success("PDF file loaded. Proceed to options.")
             
-        # st.markdown("---")
+            # B. CONDITIONAL PRESENTATION SETUP (Only appears if PPTX is chosen)
+            if is_pptx_output:
+                st.markdown("### 🎨 Presentation Template & Style ")
+                
+                col_center = st.container() 
 
-        # 2. Blueprint Editor (Tabs)
-        if st.session_state.blueprint_json:
+                # 1. PPTX Template Upload
+                with col_center:
+                    uploaded_template = st.file_uploader(
+                        "**Optional: Upload PPTX Template (Limit 200MB)**",
+                        type="pptx",
+                        key="pptx_template_uploader"
+                    )
+                    if uploaded_template:
+                        # Ensure template data is read and stored on re-run
+                        st.session_state.uploaded_template_data = uploaded_template.read()
+                        st.success(f"Template '{uploaded_template.name}' loaded.")
+                    # Part of the PPTX Template Upload logic
+                    else:
+                        st.session_state.uploaded_template_data = None
+                        # Original line: st.info("Making PPTX with Presntation Style Selection")
+                        st.info("No custom template uploaded. Default styles will be available below.")
+                        st.markdown("---")
+
+                # 2. Presentation Style Selection
+                with col_center:
+                    if st.session_state.uploaded_template_data:
+                        selected_style = "Custom Template (Styles Ignored)"
+                        st.selectbox(
+                            "Presentation Style:", 
+                            [selected_style], 
+                            disabled=True,
+                            help="Custom template overrides default styles."
+                        )
+                        st.warning("Custom template overrides default styles.")
+                    else:
+                        # Assuming PPT_STYLES is defined globally
+                        selected_style = st.selectbox(
+                            "**Presentation Style:**", 
+                            PPT_STYLES, 
+                            index=0, 
+                            help="Choose a default style: Professional, Creative, or Basic."
+                        )
+                
+                # st.markdown("---")
+            
+            # C. Trigger button for processing - Now placed AFTER options are set
+            if st.button("Click to Process Document & Generate Initial Blueprint", use_container_width=True, key="process_step_2"):
+                run_extraction_and_cleaning(uploaded_file, API_KEY)
+
+        # ------------------------------------------------------------------
+        # --- STEP 3: BLUEPRINT EDITOR & DOWNLOAD TABS (Conditional on Blueprint) ---
+        # ------------------------------------------------------------------
+        if st.session_state.get('blueprint_json'):
             
             st.subheader("Presentation Blueprint & Generation")
             
-            # Show tabs based on required output
+            # --- Tab creation logic (no change needed here) ---
             tab_names = []
             if is_pptx_output:
                 tab_names.extend(["👁️ Slide Preview", "✏️ Edit Content"])
             else:
                 tab_names.append("✏️ Edit Content")
-                 
             tab_names.append("💾 Download Files")
-            
-            # Dynamically create tabs
+                
             tabs = st.tabs(tab_names)
-            
-            # Map tabs for easier reference
             tab_map = {name: tab for name, tab in zip(tab_names, tabs)}
             
-            # --- TAB 1: Slide Preview (Only for PPTX output) ---
+            # --- TAB 1: Slide Preview ---
             if "👁️ Slide Preview" in tab_map:
                 with tab_map["👁️ Slide Preview"]:
+                    # Pass the selected_style variable
                     render_slide_preview(st.session_state.blueprint_json, selected_style) 
 
             # --- TAB 2: Edit JSON / AI Modification ---
-            edit_tab = tab_map["✏️ Edit Content"] if "✏️ Edit Content" in tab_map else tabs[0] 
+            edit_tab = tab_map.get("✏️ Edit Content", tabs[0]) 
             with edit_tab:
                 col1, col2 = st.columns([1, 1])
 
                 with col1:
                     st.subheader("JSON Editor")
-                    
+                    # ... (Your JSON editor code) ...
                     edited_json = st.text_area(
                         "Edit the JSON structure below (MUST remain valid JSON)",
                         st.session_state.blueprint_json,
                         height=500
                     )
-
+                    # JSON update logic
                     if edited_json != st.session_state.blueprint_json:
                         st.session_state.blueprint_json = edited_json
                         try:
@@ -458,21 +353,19 @@ def main():
                         except json.JSONDecodeError:
                             st.error("Invalid JSON format detected. Please correct the structure.")
 
-
                 with col2:
                     st.subheader("AI Modification")
-                    
+                    # ... (Your AI modification code) ...
                     modification_instruction = st.text_input(
                         "Instruct the AI to modify the structure (e.g., 'Combine slides 2 and 3')",
                         key="mod_instruction"
                     )
-                    if st.button("Apply AI Modification") and modification_instruction:
+                    if st.button("Apply AI Modification", use_container_width=True):
                         run_blueprint_update(modification_instruction, API_KEY)
             
-            # --- TAB 3: Download (MODIFIED FOR WIDE, STACKED BUTTONS) ---
+            # --- TAB 3: Download ---
             with tab_map["💾 Download Files"]:
                 
-                # 1. New Header
                 st.markdown("### ⬇️ Download Options")
                 
                 final_json = st.session_state.blueprint_json
@@ -482,9 +375,9 @@ def main():
                     st.markdown("#### PowerPoint (.pptx)")
                     st.markdown(f"**Style:** {'Custom Template' if st.session_state.uploaded_template_data else selected_style}")
                     
-                    # Use a wide button for generation
-                    if st.button("Generate & Download PPTX", use_container_width=True, key="generate_pptx"):
-                        with st.spinner(f"Generating PPTX..."):
+                    # Generate PPTX button
+                    if st.button("Click to Generate & Download PPTX", use_container_width=True, key="generate_pptx"):
+                        with st.spinner(f"Generating PPTX with '{selected_style}' style..."):
                             pptx_stream, pptx_error = create_pptx_with_style( 
                                 final_json, 
                                 theme_name=selected_style, 
@@ -492,7 +385,6 @@ def main():
                             )
                         
                             if pptx_stream:
-                                # Show the download button after generation (also wide)
                                 st.download_button(
                                     label="Download PowerPoint File",
                                     data=pptx_stream,
@@ -500,10 +392,10 @@ def main():
                                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                     use_container_width=True
                                 )
-                                st.success("PPTX generated! Click Download button above.")
+                                st.success("PPTX generated! Click the Download button above.")
                             elif pptx_error:
                                 st.error(f"PPTX Error: {pptx_error}")
-                    # st.markdown("---") # Separator between file types
+                    # st.markdown("---")
 
                 # --- Word Document Download (Conditional) ---
                 if is_doc_output:
@@ -520,7 +412,7 @@ def main():
                         )
                     elif docx_error:
                         st.error(f"DOCX Error: {docx_error}")
-                    # st.markdown("---") # Separator between file types
+                    # st.markdown("---")
 
 
                     # --- Markdown Report Download (Conditional) ---
@@ -537,24 +429,24 @@ def main():
                         )
                     elif markdown_error:
                         st.error(f"Markdown Error: {markdown_error}")
-
+            
 # ----------------------------------------------------
-# 3. FOOTER IMPLEMENTATION 
+# 4. FOOTER IMPLEMENTATION 
 # ----------------------------------------------------
         st.markdown("---") # Optional separator line
         st.markdown(
             """
             <style>
             .footer {
-                padding-top: 20px; /* Reduced padding from 50px */
+                padding-top: 20px; 
                 padding-bottom: 20px;
                 text-align: center;
                 font-size: 0.8rem;
-                color: #555555; /* Changed color to dark gray for visibility */
+                color: #555555; 
             }
             </style>
             <div class="footer">
-                Developed by Geetanjally | Powered by Google Gemini & OpenCV OCR
+                Developed by Geetanjally | Powered by Google Gemini & OCR technologies
             </div>
             """, 
             unsafe_allow_html=True
