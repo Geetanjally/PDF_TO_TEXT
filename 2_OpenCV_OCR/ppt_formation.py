@@ -7,7 +7,7 @@ from fpdf import FPDF
 # --------------------------------
 # CONFIG
 # --------------------------------
-API_KEY = "AIzaSyAzHf66I6a1uHUbC1-PnFCK6KyBUZTOJYI"
+API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = "models/gemini-2.5-flash"
 
 genai.configure(api_key=API_KEY)
