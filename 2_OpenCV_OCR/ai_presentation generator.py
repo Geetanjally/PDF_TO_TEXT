@@ -8,7 +8,8 @@ from pptx.util import Inches, Pt
 # CONFIGURATION
 # --------------------------------
 API_KEY = os.getenv("GEMINI_API_KEY") 
-MODEL_NAME = "models/gemini-2.5-flash"
+# MODEL_NAME = "models/gemini-2.5-flash"
+MODEL_NAME = "gemini-flash-latest"
 
 if API_KEY:
     genai.configure(api_key=API_KEY)

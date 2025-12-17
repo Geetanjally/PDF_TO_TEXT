@@ -50,7 +50,7 @@ def extract_text_gemini(image_path, max_retries=3):
     Uses the Gemini API to perform robust OCR on complex or handwritten documents.
     Relies on genai.configure() being called prior to execution (e.g., in ui.py).
     """
-    model_name = "gemini-2.5-flash" # Use the latest multi-modal model
+    model_name = "gemini-flash-latest" # Use the latest multi-modal model
     
     # 1. Load image using PIL
     try:

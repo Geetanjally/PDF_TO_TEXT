@@ -8,7 +8,8 @@ from fpdf import FPDF
 # CONFIG
 # --------------------------------
 API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = "models/gemini-2.5-flash"
+# MODEL_NAME = "models/gemini-2.5-flash"
+MODEL_NAME = "gemini-flash-latest"
 
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel(MODEL_NAME)

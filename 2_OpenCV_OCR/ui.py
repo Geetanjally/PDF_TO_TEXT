@@ -25,7 +25,8 @@ load_dotenv()
 
 # 2. Securely fetch the API key from the environment.
 API_KEY = os.getenv("GEMINI_API_KEY") 
-MODEL_NAME = "models/gemini-2.5-flash"
+# MODEL_NAME = "models/gemini-2.5-flash" 
+MODEL_NAME = "gemini-flash-latest"
 
 # --- DESIGN SETTINGS ---
 PPT_STYLES = ["Professional", "Creative", "Basic"] 
@@ -49,7 +50,7 @@ if 'uploaded_template_data' not in st.session_state:
 
 
 # --------------------------------
-# HELPER FUNCTION FOR PREVIEW
+# HELPER FUNCTION FOR PREVIEW (kept as is)
 # --------------------------------
 
 def render_slide_preview(json_data, style_name="Professional"):
@@ -116,7 +117,7 @@ def render_slide_preview(json_data, style_name="Professional"):
 
 
 # --------------------------------
-# CALLBACK FUNCTIONS
+# CALLBACK FUNCTIONS (st.rerun() removed)
 # --------------------------------
 
 def run_extraction_and_cleaning(uploaded_file, api_key):
@@ -156,7 +157,7 @@ def run_blueprint_generation(cleaned_text, api_key):
     
     st.session_state.blueprint_json = blueprint_json
     st.success("✅ Presentation blueprint generated!")
-    st.rerun() # Rerun to display the editor
+    # st.rerun() removed - state change triggers re-run
 
 def run_blueprint_update(user_instruction, api_key):
     """Callback to update the existing JSON blueprint."""
@@ -187,7 +188,8 @@ def run_blueprint_update(user_instruction, api_key):
     except json.JSONDecodeError:
         st.error("Gemini returned invalid JSON. Please re-run or edit manually.")
         st.session_state.blueprint_json = updated_json # Keep the raw output for debugging
-    st.rerun() # Rerun to refresh the editor
+    # st.rerun() removed - state change triggers re-run
+
 
 # --------------------------------
 # MAIN APPLICATION FLOW
@@ -206,10 +208,63 @@ def main():
         st.info("Please set the `GEMINI_API_KEY` environment variable in a local `.env` file or in Streamlit Cloud Secrets.")
         st.stop()
     # --- END CRITICAL FAILURE BLOCK ---
+    
+    # --- Inject CSS for Button Styling (Best Practice: Inject early) ---
+    # --- UPDATED CSS SECTION ---
+    # Increased selector specificity to ensure it overrides Streamlit defaults
+    st.markdown("""
+        <style>
+        /* Target buttons that contain the specific text for processing */
+        div.stButton > button {
+            transition: all 0.3s ease-in-out !important;
+        }
+
+        /* Targeting the specific process button by its text content proxy */
+        /* Streamlit wraps text in a <p> or <span> inside the button */
+        div.stButton > button:has(div[data-testid="stMarkdownContainer"] p:contains("Process")) {
+            background-color: #6366f1 !important;
+            color: white !important;
+            border-radius: 12px !important;
+            border: 2px solid #6366f1 !important;
+            font-weight: 700 !important;
+            height: 3em !important;
+        }
+
+        /* Fallback: styling based on the specific key 'process_step_2' */
+        button[key="process_step_2"] {
+            background-color: #6366f1 !important;
+            color: white !important;
+            border-radius: 12px !important;
+            border: none !important;
+            padding: 15px !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4) !important;
+        }
+
+        button[key="process_step_2"]:hover {
+            background-color: #4f46e5 !important;
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Styling other specific buttons */
+        button[key="generate_pptx"] {
+            background-color: #10b981 !important;
+            color: white !important;
+        }
+        
+        /* Ensure the text inside the colored button is white */
+        button[key="process_step_2"] p {
+            color: white !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
 
     # --- MAIN PAGE CONTENT (Custom Centered Layout) ---
     # NOTE: Adjusted ratio for slightly more padding, [1, 5, 1] works well too.
-    col_left, col_center, col_right = st.columns([1, 6, 1]) 
+    col_left, col_center, col_right = st.columns([1, 5, 1]) 
     
     with col_center:
         st.markdown(
@@ -247,9 +302,8 @@ def main():
         uploaded_file = st.file_uploader(
             "Placeholder", # This string is required by the function, but won't be seen.
             type="pdf",
-            label_visibility="collapsed" # <-- THIS IS THE KEY FIX
+            label_visibility="collapsed"
         )
-        # st.markdown("---") # Separator after the main input
 
         # ------------------------------------------------------------------
         # --- STEP 2: OPTIONS & PROCESS (Conditional on File) ---
@@ -261,49 +315,50 @@ def main():
             if is_pptx_output:
                 st.markdown("### 🎨 Presentation Template & Style ")
                 
-                col_center = st.container() 
+                # col_center = st.container() <-- REMOVED: Redundant and breaks layout inside this column block
 
                 # 1. PPTX Template Upload
-                with col_center:
-                    uploaded_template = st.file_uploader(
-                        "**Optional: Upload PPTX Template (Limit 200MB)**",
-                        type="pptx",
-                        key="pptx_template_uploader"
-                    )
-                    if uploaded_template:
-                        # Ensure template data is read and stored on re-run
-                        st.session_state.uploaded_template_data = uploaded_template.read()
-                        st.success(f"Template '{uploaded_template.name}' loaded.")
-                    # Part of the PPTX Template Upload logic
-                    else:
-                        st.session_state.uploaded_template_data = None
-                        # Original line: st.info("Making PPTX with Presntation Style Selection")
-                        st.info("No custom template uploaded. Default styles will be available below.")
-                        st.markdown("---")
+                # We are implicitly inside 'with col_center:'
+                uploaded_template = st.file_uploader(
+                    "**Optional: Upload PPTX Template (Limit 200MB)**",
+                    type="pptx",
+                    key="pptx_template_uploader"
+                )
+                if uploaded_template:
+                    # Ensure template data is read and stored on re-run
+                    st.session_state.uploaded_template_data = uploaded_template.read()
+                    st.success(f"Template '{uploaded_template.name}' loaded.")
+                # Part of the PPTX Template Upload logic
+                else:
+                    st.session_state.uploaded_template_data = None
+                    st.info("No custom template uploaded. Default styles will be available below.")
+                    st.markdown("---")
 
                 # 2. Presentation Style Selection
-                with col_center:
-                    if st.session_state.uploaded_template_data:
-                        selected_style = "Custom Template (Styles Ignored)"
-                        st.selectbox(
-                            "Presentation Style:", 
-                            [selected_style], 
-                            disabled=True,
-                            help="Custom template overrides default styles."
-                        )
-                        st.warning("Custom template overrides default styles.")
-                    else:
-                        # Assuming PPT_STYLES is defined globally
-                        selected_style = st.selectbox(
-                            "**Presentation Style:**", 
-                            PPT_STYLES, 
-                            index=0, 
-                            help="Choose a default style: Professional, Creative, or Basic."
-                        )
+                # We are implicitly inside 'with col_center:'
+                if st.session_state.uploaded_template_data:
+                    selected_style = "Custom Template (Styles Ignored)"
+                    st.selectbox(
+                        "Presentation Style:", 
+                        [selected_style], 
+                        disabled=True,
+                        help="Custom template overrides default styles.",
+                        key="selected_style_disabled" # Added explicit key
+                    )
+                    st.warning("Custom template overrides default styles.")
+                else:
+                    # Assuming PPT_STYLES is defined globally
+                    selected_style = st.selectbox(
+                        "**Presentation Style:**", 
+                        PPT_STYLES, 
+                        index=0, 
+                        help="Choose a default style: Professional, Creative, or Basic.",
+                        key="selected_style_enabled" # Added explicit key
+                    )
                 
-                # st.markdown("---")
             
             # C. Trigger button for processing - Now placed AFTER options are set
+            # This uses the custom CSS defined at the top
             if st.button("Click to Process Document & Generate Initial Blueprint", use_container_width=True, key="process_step_2"):
                 run_extraction_and_cleaning(uploaded_file, API_KEY)
 
@@ -338,11 +393,11 @@ def main():
 
                 with col1:
                     st.subheader("JSON Editor")
-                    # ... (Your JSON editor code) ...
                     edited_json = st.text_area(
                         "Edit the JSON structure below (MUST remain valid JSON)",
                         st.session_state.blueprint_json,
-                        height=500
+                        height=500,
+                        key="json_editor_input" # Added explicit key
                     )
                     # JSON update logic
                     if edited_json != st.session_state.blueprint_json:
@@ -355,12 +410,12 @@ def main():
 
                 with col2:
                     st.subheader("AI Modification")
-                    # ... (Your AI modification code) ...
                     modification_instruction = st.text_input(
                         "Instruct the AI to modify the structure (e.g., 'Combine slides 2 and 3')",
                         key="mod_instruction"
                     )
-                    if st.button("Apply AI Modification", use_container_width=True):
+                    # ADDED EXPLICIT KEY HERE
+                    if st.button("Apply AI Modification", use_container_width=True, key="apply_ai_mod_button"):
                         run_blueprint_update(modification_instruction, API_KEY)
             
             # --- TAB 3: Download ---
@@ -390,12 +445,12 @@ def main():
                                     data=pptx_stream,
                                     file_name="notescan_presentation.pptx",
                                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                    use_container_width=True
+                                    use_container_width=True,
+                                    key="download_pptx_final" # Added explicit key
                                 )
                                 st.success("PPTX generated! Click the Download button above.")
                             elif pptx_error:
                                 st.error(f"PPTX Error: {pptx_error}")
-                    # st.markdown("---")
 
                 # --- Word Document Download (Conditional) ---
                 if is_doc_output:
@@ -408,12 +463,11 @@ def main():
                             data=docx_stream,
                             file_name="notescan_report.docx",
                             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            use_container_width=True
+                            use_container_width=True,
+                            key="download_docx" # Added explicit key
                         )
                     elif docx_error:
                         st.error(f"DOCX Error: {docx_error}")
-                    # st.markdown("---")
-
 
                     # --- Markdown Report Download (Conditional) ---
                     st.markdown("#### Markdown Report (.md)")
@@ -425,7 +479,8 @@ def main():
                             data=markdown_content.encode('utf-8'),
                             file_name="notescan_report.md",
                             mime="text/markdown",
-                            use_container_width=True
+                            use_container_width=True,
+                            key="download_md" # Added explicit key
                         )
                     elif markdown_error:
                         st.error(f"Markdown Error: {markdown_error}")

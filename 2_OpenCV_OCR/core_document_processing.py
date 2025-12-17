@@ -20,10 +20,17 @@ from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
 # Note: Using the recommended 'google-genai' library for client-based operations
 from google.genai import Client
 from google.genai.types import Image, GenerateContentConfig, Part # Added 'Part' import for clarity
+from google.api_core import exceptions # Needed for error handling
 
 # --- Configuration Constants (Can be overridden by Streamlit app) ---
-MODEL_NAME = "models/gemini-2.5-flash"
-OCR_MODEL_NAME = "models/gemini-2.5-flash"
+# MODEL_NAME = "models/gemini-2.5-flash"
+# OCR_MODEL_NAME = "models/gemini-2.5-flash"
+from google.genai import Client
+
+client = Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+MODEL_NAME = "models/gemini-flash-latest"
+OCR_MODEL_NAME = "models/gemini-flash-latest"
 
 # ----------------------------------------------------------------------
 # 1. PDF/Image Extraction (Modified for in-memory processing for Streamlit)
@@ -142,341 +149,228 @@ def extract_text_tesseract(img_bytes, timeout=10, max_retries=2):
     print("⚠️ Tesseract (local OCR) is generally not supported in cloud environments like Streamlit. Bypassing and relying on Gemini.")
     return "" 
 
-def extract_text_gemini(data, api_key, is_base64=True, max_retries=3):
+def extract_text_gemini(data, api_key, is_base64=True, max_retries=5):
     """
-    Gemini OCR for images (especially handwritten or complex layouts).
-    Input is either base64 string or raw image bytes.
+    Gemini OCR with built-in Retry Logic for 429 errors.
     """
-    if not api_key:
-        print("❌ API Key missing for Gemini OCR.")
-        return ""
-        
-    client = Client(api_key=api_key)
-    
-    # Prompt is tailored to extract text ONLY (no summarization)
     prompt = (
         "Extract ALL text accurately. Preserve formatting, steps, bullet points, equations, "
-        "indentation, tables, and line breaks. Do NOT summarize. Return ONLY the raw text."
-    )
-    
+        "indentation, tables, and line breaks. Do NOT summarize. Return ONLY the raw text."
+    )
     img_data = base64.b64decode(data) if is_base64 else data
-    
-    # Create the Image object from bytes
-    # IMPORTANT: The mimeType must match the actual image type (which is PNG from PyMuPDF in extract_text_from_pdf)
     img_part = Part.from_bytes(data=img_data, mime_type='image/png')
 
-    config = GenerateContentConfig(
-        temperature=0,
-        max_output_tokens=8192
-    )
+    config = GenerateContentConfig(temperature=0, max_output_tokens=8192)
 
-    for attempt in range(1, max_retries + 1):
+    delay = 5 # Initial wait time in seconds
+    for attempt in range(max_retries):
         try:
             print(f"✨ Gemini OCR attempt {attempt}/{max_retries}")
             response = client.models.generate_content(
                 model=OCR_MODEL_NAME,
                 config=config,
-                contents=[
-                    img_part,
-                    prompt
-                ]
+                contents=[img_part, prompt]
             )
+            return response.text.strip()
 
-            text = getattr(response, "text", "")
-            return text.strip()
-
-        except Exception as e:
-            print(f"⚠️ Gemini OCR attempt {attempt}/{max_retries} failed: {e}")
-            if attempt < max_retries:
-                time.sleep(2)
+        except exceptions.ResourceExhausted as e:
+            # This handles the 429 error specifically
+            # This is the 429 error!
+            if attempt < max_retries - 1:
+                print(f"⚠️ Rate limit hit. Waiting {delay} seconds before retry...")
+                time.sleep(delay)
+                delay *= 2  # Wait longer each time (2s, 4s, 8s...)
             else:
-                print("❌ Gemini OCR failed finally.")
-                return ""
+                return f"[ERROR] Gemini OCR failed after {max_retries} attempts due to rate limiting."
+        except Exception as e:
+            print(f"❌ Other error: {e}")
+            break
+            
+    return ""
 
 # ----------------------------------------------------------------------
-# 4. Text Cleaning and Structuring (via Gemini)
+# 4. Text Cleaning and Structuring (CHUNKED VERSION)
 # ----------------------------------------------------------------------
 
-def _clean_raw_text(text):
-    """Simple cleaning function to reduce noise and optimize token usage."""
-    # 1. Replace multiple newlines with at most two newlines
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    # 2. Trim surrounding whitespace
-    text = text.strip()
-    return text
+def chunk_pages(pages_list, chunk_size=5):
+    """Utility to split page list into smaller manageable groups."""
+    for i in range(0, len(pages_list), chunk_size):
+        yield pages_list[i:i + chunk_size]
 
-def clean_with_gemini(raw_text, api_key):
+def clean_chunk_with_gemini(raw_text, api_key, part_no, total_parts):
     """
-    Uses Gemini to clean and structure the raw combined text.
+    Uses Gemini to clean a specific chunk with awareness of its position.
     """
     if not api_key:
-        print("❌ API Key missing for Gemini cleaning.")
-        return "[ERROR] API Key is missing for cleaning step."
+        return "[ERROR] API Key is missing."
         
     client = Client(api_key=api_key)
 
+    # Context-aware prompt to maintain continuity
     prompt = f"""
-You are a professional text cleaner and structure expert, tasked with creating a comprehensive, organized, and detailed study outline from raw OCR text.
+You are a professional text cleaner. This is PART {part_no} of {total_parts} of a larger study document.
 
-Your primary goal is **COMPLETENESS and ACCURACY ACROSS ALL PAGES**. You MUST process the entire document content. Do not omit or aggressively summarize content. **ABSOLUTELY DO NOT STOP after the first page or the first section.**
+STRICT INSTRUCTIONS:
+- If this is NOT Part 1, skip the general introduction.
+- If this is NOT the last Part, skip the concluding summary.
+- Fix OCR errors and preserve ALL technical details and bullet points.
+- Maintain Markdown structure (# for topics, ## for sections).
+- Strategically insert 
 
-Clean the following raw combined text:
-- Fix spelling mistakes, OCR artifacts, and fragmented sentences.
-- Preserve ALL conceptual information, definitions, and technical details.
-- **Structure the output into a clear, detailed report outline using Markdown:**
-    - Use H1 headings (#) for major topics.
-    - Use H2 headings (##) for main sections/sub-topics.
-    - Use H3 headings (###) for detailed sub-sections or specific concepts.
-    - Detailed information must be presented using descriptive bullet points.
+[Image of X]
+ tags for complex concepts.
 
-**CRITICAL INSTRUCTION FOR SOURCE HANDLING:**
-The input text is a concatenation of all PDF pages, separated by '---'. Treat the entire input as one continuous source document. Do NOT output the '---' markers.
-
-**CRITICAL INSTRUCTION FOR VISUALS:**
-For complex concepts, processes, or systems that would be significantly clearer with a diagram or illustration, strategically insert a diagram request using the exact format: [Image of X]. 'X' must be a concise, contextually relevant, and domain-specific search query (e.g., [Image of the Data Mining Process Flow]). Insert the tag immediately before or after the relevant text. Be economical; only use tags when they add instructional value.
-
-OCR Text:
+OCR Text from Part {part_no}:
 {raw_text}
 
-Return ONLY the cleaned, structured text in Markdown format.
+Return ONLY the cleaned Markdown.
 """
-    max_retries = 3
-    delay = 1
     
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"🤖 Sending combined text to Gemini for cleaning and structuring (Attempt {attempt})...")
+    gen_config = GenerateContentConfig(temperature=0.2, max_output_tokens=8192)
 
-            gen_config = GenerateContentConfig(
-                temperature=0.2,
-                max_output_tokens=8192
-            )
-
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=[prompt],
-                config=gen_config
-            )
-
-            return response.text.strip()
-
-        except Exception as e:
-            print(f"❌ Gemini Cleaning Error (Attempt {attempt}): {e}")
-            if attempt < max_retries:
-                time.sleep(delay)
-                delay *= 2
-            else:
-                print("❌ Gemini cleaning failed finally.")
-                return f"[ERROR] Gemini cleaning failed after {max_retries} attempts: {e}"
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=[prompt],
+            config=gen_config
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"❌ Chunk {part_no} Cleaning Error: {e}")
+        return f"\n[Error cleaning Part {part_no}]\n"
 
 # ----------------------------------------------------------------------
-# 5. Core Pipeline Function
+# 5. Core Pipeline Function (Scalable & Robust)
 # ----------------------------------------------------------------------
 
 def process_document_to_cleaned_text(pdf_file_bytes, api_key):
     """
-    The main pipeline function: PDF -> OCR (if needed) -> Combine -> Clean/Structure.
+    Handles PDF -> Page Extraction -> Chunking -> Parallelized-style Cleaning.
     """
-    # 1. Extract raw text and images from PDF
-    page_data = extract_text_from_pdf(pdf_file_bytes)
+    # 1. Extract raw content from every page
+    page_results = extract_text_from_pdf(pdf_file_bytes)
+    all_raw_pages = []
     
-    raw_text_pages = []
-    page_separator = "\n\n---\n\n"
-    
-    print(f"Total pages retrieved from PDF extraction: {len(page_data)}")
-    
-    for page_num, raw_text, base64_img in page_data:
-        page_content = ""
-        
-        if raw_text:
-            # Case 1: Use digital text directly
-            print(f"  -> Page {page_num}: Using digital text ({len(raw_text)} chars)")
-            page_content = raw_text.strip()
+    print(f"Starting extraction for {len(page_results)} pages...")
+
+    for page_num, digital_text, base64_img in page_results:
+        content = ""
+        if digital_text:
+            content = digital_text.strip()
         elif base64_img:
-            # Case 2: Need to run OCR on the image
-            if not api_key:
-                print("❌ Cannot run OCR: API Key is missing.")
-                continue
-
-            img_bytes = base64.b64decode(base64_img)
-            
-            # 2. Classify and run appropriate OCR (in this case, simplified to Gemini)
-            if is_image_digital(img_bytes):
-                # Use Gemini for digital text OCR (Tesseract is disabled)
-                ocr_text = extract_text_gemini(base64_img, api_key, is_base64=True) 
-            else:
-                # Use Gemini for handwritten/fuzzy text
-                ocr_text = extract_text_gemini(base64_img, api_key, is_base64=True)
-            
-            print(f"  -> Page {page_num}: Using OCR text ({len(ocr_text)} chars)")
-            page_content = ocr_text.strip()
-            
-        if page_content:
-            raw_text_pages.append(page_content)
-            
-    # 3. Combine all raw text using a separator only BETWEEN pages
-    raw_combined_text = page_separator.join(raw_text_pages)
-    
-    # 4. Clean up the whole document to remove excessive newlines/noise
-    raw_combined_text = _clean_raw_text(raw_combined_text)
-    
-    print(f"Total combined raw text length sent to cleaning: {len(raw_combined_text)} characters.")
-    
-    if not raw_combined_text.strip():
-        # Returning a clear error message instead of an an empty string for the app to handle
-        return None, "[ERROR] Could not extract any text from the document. The document may be empty, or OCR failed on all pages."
+            # Fallback to OCR
+            ocr_result = extract_text_gemini(base64_img, api_key)
+            content = ocr_result.strip()
+            # Pause briefly to respect rate limits for OCR calls
+            time.sleep(1) 
         
-    # 5. Clean and structure the combined text using Gemini
-    cleaned_structured_text = clean_with_gemini(raw_combined_text, api_key)
-    
-    # The calling function expects (text, error) tuple.
-    if cleaned_structured_text.startswith("[ERROR]"):
-        return None, cleaned_structured_text
-        
-    return cleaned_structured_text, None
+        if content:
+            all_raw_pages.append(content)
 
+    if not all_raw_pages:
+        return None, "[ERROR] No text could be extracted from this PDF."
+
+    # 2. Split pages into chunks (e.g., 5 pages per Gemini call)
+    PAGES_PER_CHUNK = 5
+    page_chunks = list(chunk_pages(all_raw_pages, PAGES_PER_CHUNK))
+    total_parts = len(page_chunks)
+    cleaned_chunks = []
+
+    print(f"Processing {total_parts} chunks for cleaning...")
+
+    # 3. Clean each chunk sequentially
+    for idx, chunk in enumerate(page_chunks, start=1):
+        # Combine pages in this chunk
+        chunk_raw_text = "\n\n---\n\n".join(chunk)
+        chunk_raw_text = _clean_raw_text(chunk_raw_text)
+
+        print(f"🧹 Cleaning chunk {idx}/{total_parts}...")
+        cleaned_text = clean_chunk_with_gemini(chunk_raw_text, api_key, idx, total_parts)
+        cleaned_chunks.append(cleaned_text)
+
+        # CRITICAL: Sleep between chunks to avoid 429 Rate Limit errors
+        time.sleep(4)
+
+    # 4. Merge all cleaned parts into the final document
+    final_cleaned_text = "\n\n".join(cleaned_chunks)
+    
+    return final_cleaned_text, None
 # ----------------------------------------------------------------------
 # 6. Final Output Generation (Memory-based for Streamlit)
 # ----------------------------------------------------------------------
 
 def create_pptx_from_markdown(markdown_text):
-    """
-    Generates a PPTX file in memory from structured Markdown text.
-    Handles headings (#, ##, ###) as slides and content.
-    """
     prs = Presentation() 
-    
-    # Split by top-level or secondary headings to define slide breaks
-    # This regex looks for a newline followed by #, ##, or ###
+    # Widescreen 16:9
+    prs.slide_width = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+
+    # Split slides by Markdown headings (# or ##)
+    # Added \s to ensure it only splits on actual headers
     slides_data = re.split(r'(?=\n#+\s)', markdown_text)
-    
-    # Filter out empty strings from splitting and trim whitespace
     slides_data = [s.strip() for s in slides_data if s.strip()]
 
-    # Layouts: 0=Title Slide, 1=Title and Content
     title_slide_layout = prs.slide_layouts[0] 
     content_slide_layout = prs.slide_layouts[1]
 
-    # Remove the default blank slide
-    if prs.slides:
-        prs.slides._sldIdLst.pop() 
-    
-    # Process slides
     for i, slide_text in enumerate(slides_data):
         lines = slide_text.split('\n')
-        
-        # 1. Extract Title
         title_line = lines[0].strip()
         
-        # Find the actual title text, ignoring Markdown formatting (e.g., #, ##, ###)
+        # Clean the title (remove # symbols)
         title_match = re.match(r'(#+)\s*(.*)', title_line)
         title = title_match.group(2).strip() if title_match else title_line
         
-        # Remove the title line and process the rest as content
+        # Add slide
+        slide = prs.slides.add_slide(title_slide_layout if i == 0 else content_slide_layout)
+        slide.shapes.title.text = title
+        
+        # Get the body text frame
+        try:
+            body = slide.shapes.placeholders[1].text_frame
+        except:
+            txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12), Inches(5))
+            body = txBox.text_frame
+        
+        body.word_wrap = True
         content_lines = lines[1:]
 
-        # 2. Determine Slide Layout
-        if i == 0 and not title.startswith("##"): 
-            # Use Title Slide for the first major topic
-            slide = prs.slides.add_slide(title_slide_layout)
-            slide.shapes.title.text = title
+        for line in content_lines:
+            line = line.strip()
+            if not line: continue
+
+            p = body.add_paragraph()
             
-            # Use the first content line as the subtitle/deck description
-            if content_lines and content_lines[0].strip():
-                # Find subtitle placeholder (typically index 1)
-                subtitle_placeholder = slide.placeholders[1]
-                subtitle_placeholder.text = content_lines[0].strip()
+            # --- 1. FIXED IMAGE REGEX (Corrected from your snippet) ---
+            # This looks for: 
+
+[Image of X]
+
+            img_match = re.search(r"\", line, re.IGNORECASE)
             
-            # Skip the first content line for the rest of the body processing
-            slide_content = content_lines[1:]
-        else:
-            # Use Title and Content for all subsequent slides
-            slide = prs.slides.add_slide(content_slide_layout)
-            slide.shapes.title.text = title
-            slide_content = content_lines
-            
-        # 3. Populate Content
-        
-        # CRITICAL FIX: Ensure placeholder index 1 (Body) exists before accessing
-        # New (Corrected) Code (Replacing the body placeholder Try/Except block)
+            if img_match:
+                image_topic = img_match.group(1).strip()
+                p.text = f"🖼️ [PROMPT: {image_topic}]"
+                p.font.bold = True
+                continue
 
-            # 3. Populate Content
-            body = None
-            try:
-                # Try to access the content placeholder (usually index 1)
-                if len(slide.shapes.placeholders) > 1:
-                    body = slide.shapes.placeholders[1].text_frame
-                
-                # If the slide layout is Title/Content, it should have a body.
-                if body is None and content_slide_layout.name in slide.slide_layout.name:
-                     # Fallback check for placeholder by index
-                    for p in slide.shapes.placeholders:
-                        if p.placeholder_format.idx == 1: # Common body index
-                            body = p.text_frame
-                            break
-                        
-                if body is None:
-                    raise ValueError("No suitable body placeholder found.")
-                    
-                body.clear()
-            
-            except Exception as e:
-                # CRITICAL: Instead of 'continue', create a generic textbox to save the content.
-                print(f"Warning: Placeholder failed for slide {i+1}. Falling back to manual textbox. Error: {e}")
-                
-                # Manual Textbox Fallback
-                left, top, width, height = Inches(1), Inches(1.5), Inches(8.5), Inches(5.5)
-                txBox = slide.shapes.add_textbox(left, top, width, height)
-                body = txBox.text_frame
-                body.clear()
-                body.vertical_anchor = MSO_ANCHOR.TOP # Ensure text starts from the top
+            # --- 2. HANDLE BULLETS ---
+            if re.match(r'^[\*•-]\s', line):
+                p.text = re.sub(r'^[\*•-]\s', '', line).strip()
+                p.level = 0
+            elif line.startswith('  ') or line.startswith('\t') or re.match(r'^[\*•-]{2,}', line):
+                p.text = line.lstrip('*•- \t').strip()
+                p.level = 1
+            elif line.startswith('###'):
+                p.text = line.lstrip('#').strip()
+                p.font.bold = True
+                p.level = 0
+            else:
+                p.text = line
+                p.level = 0
 
-            # Now, proceed with content insertion using the 'body' text_frame 
-            # (which is either the placeholder or the new textbox)
-            
-            current_level = 0
-        
-            for line in slide_content:
-                line = line.strip()
-                if not line:
-                    continue
+            p.font.size = Pt(18) 
 
-                p = body.add_paragraph()
-                
-                # Check for image tags BEFORE bullet points, as Gemini's output
-                # for image tags will not start with * or -.
-                img_match = re.match(r'^\$', line, re.IGNORECASE)
-
-                if img_match:
-                    # Case 1: Image Placeholder
-                    image_topic = img_match.group(1).strip()
-                    p.text = f"**[IMAGE PLACEHOLDER: Insert Image of {image_topic}]**"
-                    p.level = 0
-                
-                # Case 2: Check for sub-bullets (**) or (--) and set level 2
-                elif re.match(r'^\s*[\*•-]{2,}\s', line):
-                    p.text = re.sub(r'^\s*[\*•-]{2,}\s', '', line).strip()
-                    p.level = 1 # Sub-bullet level
-                
-                # Case 3: Check for bullet points (*, -) and set level 1 (Base)
-                elif re.match(r'^[\*•-]\s', line):
-                    p.text = re.sub(r'^[\*•-]\s', '', line).strip()
-                    p.level = 0 # Base bullet level
-                
-                # Case 4: Treat other text (sub-headings, normal sentences)
-                else:
-                    # Check for sub-headings (###) and treat as bolded topic line
-                    if line.startswith('###'):
-                        p.text = f"**{line.lstrip('#').strip()}**"
-                    else:
-                        p.text = line
-                    p.level = 0
-
-                # Ensure font size is manageable
-                p.font.size = Pt(16) 
-
-        
-    # Save the presentation to a byte stream
     prs_io = io.BytesIO()
     prs.save(prs_io)
     prs_io.seek(0)

@@ -103,7 +103,7 @@ def extract_text_gemini(image_bytes, api_key):
     try:
         response = _retry_api_call(
             client.models.generate_content,
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=parts,
             config=GenerateContentConfig(temperature=0.0)
         )
@@ -133,7 +133,7 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                 # Uncomment the block below (remove the triple quotes) 
                 # to process ONLY the first page for fast, low-token testing.
                 # **********************************************
-                
+                '''
                 page_num = 0 # Only process the first page (index 0)
                 page = doc.load_page(page_num)
                 
@@ -149,7 +149,7 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                     
                 raw_text = f"\n\n--- PAGE 1 ---\n\n{page_text}"
                 print(f"📄 Testing mode: Only Page 1 extracted.")
-                
+                '''
                 # Ensure you comment out the full scanning block (CASE 2) if using this!
                 
                 
@@ -158,7 +158,7 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                 # **********************************************
                 # Use this block for the final submission. It includes the token-saving logic.
                 # **********************************************
-                '''
+                
                 raw_text_parts = []
                 for page_num in range(doc.page_count):
                     page = doc.load_page(page_num)
@@ -191,7 +191,7 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
                     raw_text_parts.append(f"\n\n--- PAGE {page_num + 1} ---\n\n{page_text}")
                     
                 raw_text = "".join(raw_text_parts) # Combine all page text
-                '''
+            
                 
                 # Ensure you comment out the single-page block (CASE 1) if using this!
                 
@@ -238,7 +238,7 @@ def process_document_to_cleaned_text(uploaded_file, api_key):
     try:
         response = _retry_api_call(
             client.models.generate_content,
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=clean_prompt,
             config=GenerateContentConfig(
                 response_mime_type="application/json",
@@ -301,7 +301,7 @@ def generate_initial_structure(input_text, system_instruction, api_key):
     try:
         response = _retry_api_call(
             client.models.generate_content,
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=prompt,
             config=GenerateContentConfig(
                 response_mime_type="application/json",
@@ -346,7 +346,7 @@ def update_structure(api_key, existing_json, user_prompt):
     try:
         response = _retry_api_call(
             client.models.generate_content,
-            model="gemini-2.5-flash",
+            model="gemini-flash-latest",
             contents=prompt,
             config=GenerateContentConfig(
                 response_mime_type="application/json",
