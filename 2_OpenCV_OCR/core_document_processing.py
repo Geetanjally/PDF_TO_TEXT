@@ -6,10 +6,8 @@ import json
 import base64
 import numpy as np
 import cv2
-import fitz # PyMuPDF
-# The original code imported PIL Image but didn't use it in this version of extract_text_from_pdf.
-# Keeping the import here just in case, but using only fitz and base64 for image processing in the PDF function.
-# from PIL import Image 
+import fitz  # PyMuPDF
+from pptx.dml.color import RGBColor  # REQUIRED for coloring image prompts
 
 from docx import Document
 from pptx import Presentation
@@ -17,16 +15,11 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE
 
 # Import the necessary Google GenAI libraries
-# Note: Using the recommended 'google-genai' library for client-based operations
 from google.genai import Client
-from google.genai.types import Image, GenerateContentConfig, Part # Added 'Part' import for clarity
-from google.api_core import exceptions # Needed for error handling
+from google.genai.types import Image, GenerateContentConfig, Part
+from google.api_core import exceptions
 
-# --- Configuration Constants (Can be overridden by Streamlit app) ---
-# MODEL_NAME = "models/gemini-2.5-flash"
-# OCR_MODEL_NAME = "models/gemini-2.5-flash"
-from google.genai import Client
-
+# --- Configuration Constants ---
 client = Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 MODEL_NAME = "models/gemini-flash-latest"
@@ -79,7 +72,7 @@ def extract_text_from_pdf(pdf_bytes, dpi=200):
             # Strips whitespace and normalizes it to count meaningful characters.
             meaningful_text_length = len(re.sub(r'\s+', '', raw_pdf_text))
 
-            # Threshold: If meaningful text > 50 characters, assume digital text is sufficient.
+            # Threshold: If meaningful text > 250 characters, assume digital text is sufficient.
             if meaningful_text_length > 250:
                 print(f"📄 Page {page_num}: Digital text found, skipping image OCR. Content Length: {meaningful_text_length}")
                 # Use raw_pdf_text and set base64_img to None (to avoid unnecessary OCR)
@@ -153,19 +146,17 @@ def extract_text_gemini(data, api_key, is_base64=True, max_retries=5):
     """
     Gemini OCR with built-in Retry Logic for 429 errors.
     """
-    prompt = (
-        "Extract ALL text accurately. Preserve formatting, steps, bullet points, equations, "
-        "indentation, tables, and line breaks. Do NOT summarize. Return ONLY the raw text."
-    )
+    prompt = ("Extract ALL text accurately. Preserve formatting, steps, bullet points, equations, "
+        "indentation, tables, and line breaks. Do NOT summarize. Return ONLY the raw text.")
     img_data = base64.b64decode(data) if is_base64 else data
     img_part = Part.from_bytes(data=img_data, mime_type='image/png')
 
     config = GenerateContentConfig(temperature=0, max_output_tokens=8192)
 
-    delay = 5 # Initial wait time in seconds
+    delay = 5  # Initial wait time in seconds
     for attempt in range(max_retries):
         try:
-            print(f"✨ Gemini OCR attempt {attempt}/{max_retries}")
+            print(f"✨ Gemini OCR attempt {attempt + 1}/{max_retries}")
             response = client.models.generate_content(
                 model=OCR_MODEL_NAME,
                 config=config,
@@ -175,11 +166,10 @@ def extract_text_gemini(data, api_key, is_base64=True, max_retries=5):
 
         except exceptions.ResourceExhausted as e:
             # This handles the 429 error specifically
-            # This is the 429 error!
             if attempt < max_retries - 1:
                 print(f"⚠️ Rate limit hit. Waiting {delay} seconds before retry...")
                 time.sleep(delay)
-                delay *= 2  # Wait longer each time (2s, 4s, 8s...)
+                delay *= 2  # Wait longer each time (5s, 10s, 20s...)
             else:
                 return f"[ERROR] Gemini OCR failed after {max_retries} attempts due to rate limiting."
         except Exception as e:
@@ -192,6 +182,17 @@ def extract_text_gemini(data, api_key, is_base64=True, max_retries=5):
 # 4. Text Cleaning and Structuring (CHUNKED VERSION)
 # ----------------------------------------------------------------------
 
+def _clean_raw_text(text):
+    """
+    Helper function to clean raw OCR text.
+    Removes excessive whitespace and normalizes line breaks.
+    """
+    # Remove excessive blank lines (more than 2 newlines in a row)
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    # Remove trailing/leading whitespace from each line
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+    return text.strip()
+
 def chunk_pages(pages_list, chunk_size=5):
     """Utility to split page list into smaller manageable groups."""
     for i in range(0, len(pages_list), chunk_size):
@@ -203,8 +204,6 @@ def clean_chunk_with_gemini(raw_text, api_key, part_no, total_parts):
     """
     if not api_key:
         return "[ERROR] API Key is missing."
-        
-    client = Client(api_key=api_key)
 
     # Context-aware prompt to maintain continuity
     prompt = f"""
@@ -215,10 +214,7 @@ STRICT INSTRUCTIONS:
 - If this is NOT the last Part, skip the concluding summary.
 - Fix OCR errors and preserve ALL technical details and bullet points.
 - Maintain Markdown structure (# for topics, ## for sections).
-- Strategically insert 
-
-[Image of X]
- tags for complex concepts.
+- Strategically insert [Image of X] tags for complex concepts that would benefit from visual aids (diagrams, charts, illustrations).
 
 OCR Text from Part {part_no}:
 {raw_text}
@@ -295,11 +291,16 @@ def process_document_to_cleaned_text(pdf_file_bytes, api_key):
     final_cleaned_text = "\n\n".join(cleaned_chunks)
     
     return final_cleaned_text, None
+
 # ----------------------------------------------------------------------
 # 6. Final Output Generation (Memory-based for Streamlit)
 # ----------------------------------------------------------------------
 
 def create_pptx_from_markdown(markdown_text):
+    """
+    Generates a PPTX file in memory from structured Markdown text.
+    Converts [Image of X] tags into colored prompts for manual image insertion.
+    """
     prs = Presentation() 
     # Widescreen 16:9
     prs.slide_width = Inches(13.33)
@@ -327,7 +328,9 @@ def create_pptx_from_markdown(markdown_text):
         
         # Get the body text frame
         try:
-            body = slide.shapes.placeholders[1].text_frame
+            body_shape = slide.shapes.placeholders[1]
+            body = body_shape.text_frame
+            body.clear()  # Clear any default placeholder text
         except:
             txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(12), Inches(5))
             body = txBox.text_frame
@@ -337,24 +340,23 @@ def create_pptx_from_markdown(markdown_text):
 
         for line in content_lines:
             line = line.strip()
-            if not line: continue
+            if not line:
+                continue
 
             p = body.add_paragraph()
             
-            # --- 1. FIXED IMAGE REGEX (Corrected from your snippet) ---
-            # This looks for: 
-
-[Image of X]
-
-            img_match = re.search(r"\", line, re.IGNORECASE)
+            # --- 1. HANDLE [Image of X] TAGS ---
+            # This looks for: [Image of X] where X is any text
+            img_match = re.search(r'\[Image of (.+?)\]', line, re.IGNORECASE)
             
             if img_match:
                 image_topic = img_match.group(1).strip()
                 p.text = f"🖼️ [PROMPT: {image_topic}]"
                 p.font.bold = True
+                p.font.color.rgb = RGBColor(0, 102, 204)  # Blue color for visibility
                 continue
 
-            # --- 2. HANDLE BULLETS ---
+            # --- 2. HANDLE BULLETS AND FORMATTING ---
             if re.match(r'^[\*•-]\s', line):
                 p.text = re.sub(r'^[\*•-]\s', '', line).strip()
                 p.level = 0
@@ -408,7 +410,7 @@ def create_markdown_report(markdown_text):
     """
     Returns the final structured Markdown text as a file-like object.
     """
-    # Create an in-memory file for the markdown content
+    # Ensure text is encoded to bytes for a file download
     markdown_io = io.BytesIO(markdown_text.encode('utf-8'))
     markdown_io.seek(0)
     return markdown_io

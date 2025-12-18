@@ -26,7 +26,7 @@ load_dotenv()
 # 2. Securely fetch the API key from the environment.
 API_KEY = os.getenv("GEMINI_API_KEY") 
 # MODEL_NAME = "models/gemini-2.5-flash" 
-MODEL_NAME = "gemini-flash-latest"
+MODEL_NAME = "models/gemini-flash-latest"
 
 # --- DESIGN SETTINGS ---
 PPT_STYLES = ["Professional", "Creative", "Basic"] 
