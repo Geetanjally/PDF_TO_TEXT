@@ -1,12 +1,9 @@
 import os
 import json
 import streamlit as st
-import io # Needed for st.download_button
-from dotenv import load_dotenv # Used for loading environment variables locally
+import io
+from dotenv import load_dotenv 
 
-# --- Import ALL logic from the consolidated Canvas files ---
-# NOTE: These files (core_document_generator.py, pptx_designer.py) 
-# are assumed to exist and contain the imported functions.
 from core_document_generator import (
     process_document_to_cleaned_text,
     generate_initial_structure,
