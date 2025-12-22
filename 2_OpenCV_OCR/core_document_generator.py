@@ -8,7 +8,6 @@ from google.genai import Client
 from google.genai.types import Content, Part, GenerateContentConfig
 from PIL import Image
 
-# --- Conditional Imports for Libraries used in the advanced pipeline ---
 try:
     from pptx_designer import create_pptx_with_style as create_pptx
 except ImportError:
@@ -47,11 +46,6 @@ except ImportError:
 # CONFIGURATION
 # --------------------------------
 GENAI_CLIENT = None
-# --------------------------------
-
-# --------------------------------
-# 2. CORE GEMINI API FUNCTIONS
-# --------------------------------
 
 def _get_genai_client(api_key):
     """Initializes and returns the global Gemini API client."""

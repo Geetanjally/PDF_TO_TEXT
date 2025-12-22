@@ -26,7 +26,7 @@ MODEL_NAME = "models/gemini-flash-latest"
 OCR_MODEL_NAME = "models/gemini-flash-latest"
 
 # ----------------------------------------------------------------------
-# 1. PDF/Image Extraction (Modified for in-memory processing for Streamlit)
+# 1. PDF/Image Extraction 
 # ----------------------------------------------------------------------
 
 def extract_text_from_pdf(pdf_bytes, dpi=200):
